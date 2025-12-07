@@ -100,4 +100,6 @@ matrix := impl.NewMatrixTranslate(10, 20)
 
 ## Development Status
 
+Skia version : release chrome/m144
+
 The implementation aims to follow  Skia's C++ codebase closely and is designed to be a drop-in replacement for Skia's core types in Go applications.
