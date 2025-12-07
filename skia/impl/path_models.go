@@ -185,15 +185,23 @@ func (c *convexicator) setMovePt(pt Point) {
 	c.firstPt = pt
 	c.lastPt = pt
 	c.expectedDir = enums.DirChangeInvalid
+	// Reset vectors to zero to match C++ initialization
+	// Ported from: skia-source/src/core/SkPathPriv.cpp:setMovePt() (lines 424-427)
+	c.lastVec = Point{X: 0, Y: 0}
+	c.firstVec = Point{X: 0, Y: 0}
+	c.reversals = 0
+	c.isFinite = true
 }
 
 func (c *convexicator) addPt(pt Point) bool {
 	if c.lastPt == pt {
 		return true
 	}
-	// Should only be true for first non-zero vector after setMovePt was called
+	// Should only be true for first non-zero vector after setMovePt was called.
+	// It is possible we doubled back at the start so need to check if lastVec is zero or not.
+	// Ported from: skia-source/src/core/SkPathPriv.cpp:addPt() (lines 429-443)
 	vec := Point{X: pt.X - c.lastPt.X, Y: pt.Y - c.lastPt.Y}
-	if c.firstPt == c.lastPt && c.expectedDir == enums.DirChangeInvalid && vec.X == 0 && vec.Y == 0 {
+	if c.firstPt == c.lastPt && c.expectedDir == enums.DirChangeInvalid && c.lastVec.X == 0 && c.lastVec.Y == 0 {
 		c.lastVec = vec
 		c.firstVec = vec
 	} else if !c.addVec(vec) {

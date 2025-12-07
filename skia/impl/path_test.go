@@ -273,10 +273,7 @@ func TestPath_Convexity(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Skip concave and self-intersecting tests until convexicator is fixed
-			if tc.name == "concave quadrilateral" || tc.name == "self-intersecting" {
-				t.Skip("Skipping concave shape test - blocked by convexicator bug (see path_models.go)")
-			}
+			// Self-intersecting test re-enabled - should work with fixed Close() method
 			path := NewSkPath(enums.PathFillTypeDefault)
 			if len(tc.points) > 0 {
 				path.MoveTo(tc.points[0].X, tc.points[0].Y)
@@ -353,9 +350,7 @@ func TestPath_Convexity2(t *testing.T) {
 	checkConvexity(t, redundantSquare, true)
 
 	// Test bow tie (concave - self-intersecting)
-	// NOTE: Skipped until convexicator is fixed
 	t.Run("bow_tie", func(t *testing.T) {
-		t.Skip("Skipping bow tie test - blocked by convexicator bug (see path_models.go)")
 		bowTie := NewSkPath(enums.PathFillTypeDefault)
 		bowTie.MoveTo(0, 0)
 		bowTie.LineTo(0, 0)
@@ -374,9 +369,7 @@ func TestPath_Convexity2(t *testing.T) {
 	})
 
 	// Test spiral (concave)
-	// NOTE: Skipped until convexicator is fixed
 	t.Run("spiral", func(t *testing.T) {
-		t.Skip("Skipping spiral test - blocked by convexicator bug (see path_models.go)")
 		spiral := NewSkPath(enums.PathFillTypeDefault)
 		spiral.MoveTo(0, 0)
 		spiral.LineTo(100, 0)
@@ -390,9 +383,7 @@ func TestPath_Convexity2(t *testing.T) {
 	})
 
 	// Test dent (concave)
-	// NOTE: Skipped until convexicator is fixed
 	t.Run("dent", func(t *testing.T) {
-		t.Skip("Skipping dent test - blocked by convexicator bug (see path_models.go)")
 		dent := NewSkPath(enums.PathFillTypeDefault)
 		dent.MoveTo(0, 0)
 		dent.LineTo(100, 100)
@@ -404,9 +395,7 @@ func TestPath_Convexity2(t *testing.T) {
 	})
 
 	// Test degenerate concave path (from crbug.com/412640)
-	// NOTE: Skipped until convexicator is fixed
 	t.Run("degenerate_concave", func(t *testing.T) {
-		t.Skip("Skipping degenerate concave test - blocked by convexicator bug (see path_models.go)")
 		degenerateConcave := NewSkPath(enums.PathFillTypeDefault)
 		degenerateConcave.MoveTo(148.67912, 191.875)
 		degenerateConcave.LineTo(470.37695, 7.5)
@@ -418,9 +407,7 @@ func TestPath_Convexity2(t *testing.T) {
 	})
 
 	// Test bad first vector path (from crbug.com/433683)
-	// NOTE: Skipped until convexicator is fixed
 	t.Run("bad_first_vector", func(t *testing.T) {
-		t.Skip("Skipping bad first vector test - blocked by convexicator bug (see path_models.go)")
 		badFirstVector := NewSkPath(enums.PathFillTypeDefault)
 		badFirstVector.MoveTo(501.087708, 319.610352)
 		badFirstVector.LineTo(501.087708, 319.610352) // duplicate point
@@ -436,9 +423,7 @@ func TestPath_Convexity2(t *testing.T) {
 	})
 
 	// Test false back edge path (from crbug.com/993330)
-	// NOTE: Skipped until convexicator is fixed
 	t.Run("false_back_edge", func(t *testing.T) {
-		t.Skip("Skipping false back edge test - blocked by convexicator bug (see path_models.go)")
 		falseBackEdge := NewSkPath(enums.PathFillTypeDefault)
 		falseBackEdge.MoveTo(-217.83430557928145, -382.14948768484857)
 		falseBackEdge.LineTo(-227.73867866614847, -399.52485512718323)
@@ -479,9 +464,7 @@ func TestPath_ConvexityCaching(t *testing.T) {
 	}
 
 	// Modify path (should invalidate cache)
-	// NOTE: Skipping concave detection test until convexicator is fixed
 	t.Run("concave_after_modification", func(t *testing.T) {
-		t.Skip("Skipping concave detection test - blocked by convexicator bug (see path_models.go)")
 		path.LineTo(5, 15) // Makes it concave
 		convex3 := path.IsConvex()
 		if convex3 {

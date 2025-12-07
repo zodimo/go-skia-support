@@ -332,6 +332,9 @@ func (p *pathImpl) CubicToPoint(c1, c2, pt Point) {
 }
 
 // Close closes the current contour.
+// Ported from: skia-source/src/core/SkPath.cpp:close()
+// Note: C++ does NOT add implicit line to path data - iterator handles it dynamically.
+// The implicit line is handled in computeConvexity() when processing PathVerbClose.
 func (p *pathImpl) Close() {
 	if len(p.verbs) > 0 {
 		switch p.verbs[len(p.verbs)-1] {
@@ -345,6 +348,7 @@ func (p *pathImpl) Close() {
 	if p.lastMoveToIndex >= 0 {
 		p.lastMoveToIndex = ^p.lastMoveToIndex
 	}
+	p.dirtyAfterEdit()
 }
 
 // AddRect adds a rectangle to the path.
@@ -685,25 +689,25 @@ func (p *pathImpl) computeConvexity() enums.PathConvexity {
 		return enums.PathConvexityConcave
 	}
 
-	// Iterate through the path and check convexity
+	// Use PathIter to iterate through the path, matching C++ SkPathIter behavior
+	// Ported from: skia-source/src/core/SkPathPriv.cpp:ComputeConvexity() (lines 591-631)
+	iter := NewPathIter(points, verbs, p.conicWeights)
 	contourCount := 0
 	needsClose := false
 	state := newConvexicator()
 
-	pointIdx := 0
-	conicWeightIdx := 0
+	for rec := iter.Next(); rec != nil; rec = iter.Next() {
+		verb := rec.Verb
+		pts := rec.Points
 
-	for _, verb := range verbs {
 		// Looking for the last moveTo before non-move verbs start
 		if contourCount == 0 {
 			if verb == enums.PathVerbMove {
-				if pointIdx < len(points) {
-					state.setMovePt(points[pointIdx])
-					pointIdx++
+				if len(pts) > 0 {
+					state.setMovePt(pts[0])
 				}
 			} else {
-				// Starting the actual contour, fall through to add the points
-				// Note: This assumes there was a MoveTo (which should always be the case)
+				// Starting the actual contour, fall through to c=1 to add the points
 				contourCount++
 				needsClose = true
 			}
@@ -718,24 +722,20 @@ func (p *pathImpl) computeConvexity() enums.PathConvexity {
 				needsClose = false
 				contourCount++
 				if verb == enums.PathVerbMove {
-					if pointIdx < len(points) {
-						state.setMovePt(points[pointIdx])
-						pointIdx++
+					if len(pts) > 0 {
+						state.setMovePt(pts[0])
 					}
 				}
 			} else {
 				// Lines add 1 point, cubics add 3, conics and quads add 2
-				// These are the points AFTER the start point (which is tracked in state.lastPt)
+				// The iterator provides n+1 points: [start point, ...n additional points]
+				// We process points starting from index 1 (the additional points)
 				count := ptsInVerb(verb)
-				if count > 0 && pointIdx+count-1 < len(points) {
-					for i := 0; i < count; i++ {
-						if !state.addPt(points[pointIdx+i]) {
+				if count > 0 && len(pts) > count {
+					for i := 1; i <= count; i++ {
+						if !state.addPt(pts[i]) {
 							return enums.PathConvexityConcave
 						}
-					}
-					pointIdx += count
-					if verb == enums.PathVerbConic {
-						conicWeightIdx++
 					}
 				}
 			}
@@ -744,9 +744,6 @@ func (p *pathImpl) computeConvexity() enums.PathConvexity {
 			// there's multiple contours and the path can't be convex
 			if verb != enums.PathVerbMove {
 				return enums.PathConvexityConcave
-			}
-			if pointIdx < len(points) {
-				pointIdx++
 			}
 		}
 	}
