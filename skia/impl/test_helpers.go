@@ -81,3 +81,19 @@ func IsFiniteMatrix(m SkMatrix) bool {
 	return true
 }
 
+// NearlyZeroTolerance is the tolerance used by SkScalarNearlyEqual in C++.
+// Matches C++: SK_ScalarNearlyZero = SK_Scalar1 / (1 << 12) = 1.0 / 4096 ≈ 0.000244
+const NearlyZeroTolerance base.Scalar = 1.0 / 4096
+
+// NearlyEqualScalarDefault compares two scalar values with the default C++ tolerance.
+// Returns true if |a - b| <= NearlyZeroTolerance.
+//
+// Ported from: skia-source/include/core/SkScalar.h:SkScalarNearlyEqual()
+// Tolerance: SK_ScalarNearlyZero = 1.0 / 4096 ≈ 0.000244
+func NearlyEqualScalarDefault(a, b base.Scalar) bool {
+	diff := a - b
+	if diff < 0 {
+		diff = -diff
+	}
+	return diff <= NearlyZeroTolerance
+}
