@@ -85,8 +85,11 @@ Ensuring bit-for-bit or near-bit-for-bit accuracy in mathematical operations acr
 - [ ] Map each C++ method to corresponding Go method
 - [ ] Identify any missing functions in Go port
 - [ ] Document intentional omissions (if any)
+- [ ] **Map helper functions:** Identify C++ helper functions and their Go equivalents
+- [ ] **Map model operations:** Document how C++ model operations map to Go models
+- [ ] **Track dependencies:** Document which helpers/models each implementation depends on
 
-**Deliverable:** Function mapping matrix (C++ → Go)
+**Deliverable:** Function mapping matrix (C++ → Go), including helpers and dependencies
 
 #### 1.2 Algorithm Comparison
 **Objective:** Verify algorithmic equivalence
@@ -99,10 +102,15 @@ Ensuring bit-for-bit or near-bit-for-bit accuracy in mathematical operations acr
   - Rect transformation (`MapRect`)
   - Path bounds calculation
   - Paint bounds computation
+- [ ] **Compare helper algorithms:**
+  - Helper functions in `matrix_helpers.go` (e.g., `rowcol3`, `muladdmul`, `scross_dscale`)
+  - Helper functions in `paint_helpers.go`
+  - Helper functions in `path_helper.go`
+  - Model operations (Point, Rect, RRect operations)
 - [ ] Document any algorithmic differences
 - [ ] Verify optimization paths match (e.g., identity matrix shortcuts, scale+translate optimizations)
 
-**Deliverable:** Algorithm comparison report
+**Deliverable:** Algorithm comparison report, including helper functions and model operations
 
 #### 1.3 Constant & Enum Verification
 **Objective:** Ensure all constants match exactly
@@ -130,8 +138,14 @@ Ensuring bit-for-bit or near-bit-for-bit accuracy in mathematical operations acr
 - [ ] Extract test cases and adapt to Go test framework
 - [ ] Create Go test equivalents using `testing` package
 - [ ] Run tests and compare results
+- [ ] **Extend tests to dependent components:**
+  - Test helper functions (`matrix_helpers.go`, `paint_helpers.go`, `path_helper.go`) independently
+  - Test model operations (`Point`, `Rect`, `RRect`, `Color4f`) used by implementations
+  - Test enum behavior where applicable
+  - Test base constants and utilities
+  - Verify integration between components
 
-**Deliverable:** Ported test suite with results comparison
+**Deliverable:** Ported test suite with results comparison, including dependent component coverage
 
 #### 2.2 Edge Case Testing
 **Objective:** Verify behavior at boundaries and special cases
@@ -327,6 +341,8 @@ Ensuring bit-for-bit or near-bit-for-bit accuracy in mathematical operations acr
 
 ### Must Have (Blocking Issues)
 - ✅ All Skia test cases pass (or documented acceptable deviations)
+- ✅ **All dependent components tested:** Helper functions, models, and enums have independent test coverage
+- ✅ **Integration tests:** Components work together correctly as verified by tests
 - ✅ Edge cases handled identically to C++
 - ✅ Floating-point precision within acceptable tolerance (< 1 ULP for most operations)
 - ✅ No crashes or panics on valid inputs
@@ -334,9 +350,12 @@ Ensuring bit-for-bit or near-bit-for-bit accuracy in mathematical operations acr
 
 ### Should Have (Quality)
 - ✅ Performance within 2x of C++ implementation
-- ✅ 100% code coverage of ported functions
+- ✅ 100% code coverage of ported functions **including helpers and models**
+- ✅ **Helper function coverage:** All helper functions have dedicated tests
+- ✅ **Model operation coverage:** All model operations used by implementations are tested
 - ✅ Comprehensive documentation of any deviations
 - ✅ Property-based tests verify mathematical correctness
+- ✅ **File size management:** Source files kept manageable (< 1500 lines) with proactive refactoring
 
 ### Nice to Have (Future)
 - ✅ Automated regression testing against Skia updates
@@ -354,8 +373,10 @@ Ensuring bit-for-bit or near-bit-for-bit accuracy in mathematical operations acr
 
 ### Week 2: Core Testing
 - [ ] Port Skia test suite (Phase 2.1)
+- [ ] **Port tests for dependent components:** Helpers, models, enums
 - [ ] Implement edge case tests (Phase 2.2)
 - [ ] Begin precision testing (Phase 2.3)
+- [ ] **Monitor file sizes:** Refactor proactively if files exceed 1500 lines
 
 ### Week 3: Comparative Testing
 - [ ] Set up C++ bridge/testing harness (Phase 3)
@@ -376,7 +397,7 @@ Ensuring bit-for-bit or near-bit-for-bit accuracy in mathematical operations acr
 **Mitigation:** Establish clear tolerance thresholds, document acceptable deviations
 
 ### Risk: Missing Test Coverage
-**Mitigation:** Extract and port all Skia tests, supplement with additional edge cases
+**Mitigation:** Extract and port all Skia tests, supplement with additional edge cases, **ensure tests extend to all dependent components (helpers, models, enums)**
 
 ### Risk: Performance Degradation
 **Mitigation:** Benchmark early, optimize hot paths if needed
