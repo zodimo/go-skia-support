@@ -365,7 +365,13 @@ func RectPathRaw(rect Rect, dir enums.PathDirection, startIndex uint) PathRaw {
 	points[3] = iter.next()
 
 	// Verbs: Move, Line, Line, Line, Close
-	verbs := PathVerbs
+	verbs := []enums.PathVerb{
+		enums.PathVerbMove,
+		enums.PathVerbLine,
+		enums.PathVerbLine,
+		enums.PathVerbLine,
+		enums.PathVerbClose,
+	}
 	// Point indices: Move uses point 0, each Line uses the next point
 	// For Move: uses points[0]
 	// For Line 1: uses points[1] (which is PointIndices[1] = 0, then +1 = 1)
@@ -407,7 +413,14 @@ func OvalPathRaw(rect Rect, dir enums.PathDirection, startIndex uint) PathRaw {
 	}
 
 	// Verbs: Move, Conic, Conic, Conic, Conic, Close
-	verbs := PathVerbs
+	verbs := []enums.PathVerb{
+		enums.PathVerbMove,
+		enums.PathVerbConic,
+		enums.PathVerbConic,
+		enums.PathVerbConic,
+		enums.PathVerbConic,
+		enums.PathVerbClose,
+	}
 
 	// Conic weights: all 4 use sqrt(2)/2 for quarter-circle approximation
 	conicWeights := []Scalar{
@@ -591,25 +604,15 @@ func isConcaveBySign(points []Point) bool {
 	lastSx := 999 // kValueNeverReturnedBySign
 	lastSy := 999
 
-	// Check twice: once through the points, then from last to first
+	// Check twice: first pass from points[1] to end, second pass processes first edge only
+	// This matches C++ implementation: counters and lastSx/lastSy accumulate across both passes
+	currPt := points[0]
+	firstPt := currPt
+	pointIdx := 1 // Start from second point (points[1])
+
 	for outerLoop := 0; outerLoop < 2; outerLoop++ {
-		currPt := points[0]
-		i := 1
-		if outerLoop == 1 {
-			// Second pass: start from last point
-			currPt = points[len(points)-1]
-			i = len(points) - 2
-		}
-
-		for {
-			if outerLoop == 0 && i >= len(points) {
-				break
-			}
-			if outerLoop == 1 && i < 0 {
-				break
-			}
-
-			vec := Point{X: points[i].X - currPt.X, Y: points[i].Y - currPt.Y}
+		for pointIdx < len(points) {
+			vec := Point{X: points[pointIdx].X - currPt.X, Y: points[pointIdx].Y - currPt.Y}
 			if vec.X != 0 || vec.Y != 0 {
 				// Give up if vector construction failed
 				if !IsFinite(vec.X) || !IsFinite(vec.Y) {
@@ -632,42 +635,18 @@ func isConcaveBySign(points []Point) bool {
 				lastSx = sx
 				lastSy = sy
 			}
-			currPt = points[i]
-
-			if outerLoop == 0 {
-				i++
-			} else {
-				i--
-				if i < 0 {
-					// Check connection from last point to first point
-					vec := Point{X: points[0].X - currPt.X, Y: points[0].Y - currPt.Y}
-					if vec.X != 0 || vec.Y != 0 {
-						if !IsFinite(vec.X) || !IsFinite(vec.Y) {
-							return true
-						}
-						sx := sign(vec.X)
-						sy := sign(vec.Y)
-						if sx != lastSx {
-							dxes++
-							if dxes > 3 {
-								return true
-							}
-						}
-						if sy != lastSy {
-							dyes++
-							if dyes > 3 {
-								return true
-							}
-						}
-					}
-					break
-				}
+			currPt = points[pointIdx]
+			pointIdx++
+			
+			// In C++, the second pass breaks after first iteration
+			if outerLoop == 1 {
+				break
 			}
 		}
+		// Second pass: reset point index to 0 (start from first point)
 		if outerLoop == 0 {
-			// Reset for second pass (from last to first)
-			lastSx = 999
-			lastSy = 999
+			currPt = firstPt
+			pointIdx = 0
 		}
 	}
 	return false // may be convex, don't know yet

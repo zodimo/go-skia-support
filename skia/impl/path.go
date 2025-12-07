@@ -962,8 +962,21 @@ func (p *pathImpl) addRaw(raw PathRaw) {
 		case enums.PathVerbQuad:
 			p.QuadToPoint(raw.Points[raw.PointIndices[i]], raw.Points[raw.PointIndices[i]+1])
 		case enums.PathVerbConic:
-			weight := raw.ConicWeights[raw.ConicIndex[i]]
-			p.ConicToPoint(raw.Points[raw.PointIndices[i]], raw.Points[raw.PointIndices[i]+1], weight)
+			// Conic verbs require ConicWeights and ConicIndex to be non-nil and valid
+			if raw.ConicWeights == nil || raw.ConicIndex == nil || i >= len(raw.ConicIndex) {
+				// This should not happen for a valid conic verb - log error but continue
+				// Use default weight of 1.0 (circular arc) as fallback
+				p.ConicToPoint(raw.Points[raw.PointIndices[i]], raw.Points[raw.PointIndices[i]+1], 1.0)
+			} else {
+				conicIdx := raw.ConicIndex[i]
+				if conicIdx < len(raw.ConicWeights) {
+					weight := raw.ConicWeights[conicIdx]
+					p.ConicToPoint(raw.Points[raw.PointIndices[i]], raw.Points[raw.PointIndices[i]+1], weight)
+				} else {
+					// Index out of bounds - use default weight
+					p.ConicToPoint(raw.Points[raw.PointIndices[i]], raw.Points[raw.PointIndices[i]+1], 1.0)
+				}
+			}
 		case enums.PathVerbCubic:
 			p.CubicToPoint(raw.Points[raw.PointIndices[i]], raw.Points[raw.PointIndices[i]+1], raw.Points[raw.PointIndices[i]+2])
 		case enums.PathVerbClose:
