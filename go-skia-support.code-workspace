@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../skia-source"
+		}
+	],
+	"settings": {}
+}
