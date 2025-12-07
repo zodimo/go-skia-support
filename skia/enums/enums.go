@@ -143,3 +143,26 @@ const (
 	DirChangeBackwards DirChange = 4
 	DirChangeInvalid   DirChange = 5
 )
+
+// ClipOp represents a clip operation type
+// Matches C++ SkClipOp enum from include/core/SkClipOp.h
+type ClipOp uint8
+
+const (
+	ClipOpDifference        ClipOp = 0 // clip becomes current clip minus operand
+	ClipOpIntersect         ClipOp = 1 // clip becomes intersection of current clip and operand (default, most common)
+	ClipOpUnion             ClipOp = 2 // clip becomes union of current clip and operand
+	ClipOpXOR               ClipOp = 3 // clip becomes XOR of current clip and operand
+	ClipOpReverseDifference ClipOp = 4 // clip becomes operand minus current clip
+	ClipOpDefault           ClipOp = ClipOpIntersect
+)
+
+// PointMode represents how an array of points should be drawn
+// Matches C++ SkCanvas::PointMode enum from include/core/SkCanvas.h
+type PointMode uint8
+
+const (
+	PointModePoints  PointMode = 0 // draw each point separately
+	PointModeLines   PointMode = 1 // draw each pair of points as a line segment
+	PointModePolygon PointMode = 2 // draw the array of points as an open polygon
+)
