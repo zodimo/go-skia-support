@@ -146,15 +146,13 @@ const (
 
 // ClipOp represents a clip operation type
 // Matches C++ SkClipOp enum from include/core/SkClipOp.h
+// Note: SkClipOp only defines kDifference and kIntersect (not SkPathOp operations)
 type ClipOp uint8
 
 const (
-	ClipOpDifference        ClipOp = 0 // clip becomes current clip minus operand
-	ClipOpIntersect         ClipOp = 1 // clip becomes intersection of current clip and operand (default, most common)
-	ClipOpUnion             ClipOp = 2 // clip becomes union of current clip and operand
-	ClipOpXOR               ClipOp = 3 // clip becomes XOR of current clip and operand
-	ClipOpReverseDifference ClipOp = 4 // clip becomes operand minus current clip
-	ClipOpDefault           ClipOp = ClipOpIntersect
+	ClipOpDifference ClipOp = 0 // clip becomes current clip minus operand
+	ClipOpIntersect  ClipOp = 1 // clip becomes intersection of current clip and operand (default, most common)
+	ClipOpDefault    ClipOp = ClipOpIntersect
 )
 
 // PointMode represents how an array of points should be drawn

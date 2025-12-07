@@ -122,9 +122,6 @@ type SkCanvas interface {
 	// ClipOp behavior:
 	//   - ClipOpIntersect: Clip becomes intersection of current clip and rect (default, most common)
 	//   - ClipOpDifference: Clip becomes current clip minus rect
-	//   - ClipOpUnion: Clip becomes union of current clip and rect
-	//   - ClipOpXOR: Clip becomes XOR of current clip and rect
-	//   - ClipOpReverseDifference: Clip becomes rect minus current clip
 	// doAntiAlias controls edge quality:
 	//   - false: Aliased clip - pixels are fully contained by the clip (faster)
 	//   - true: Anti-aliased clip - smooth edges with partial pixel coverage (slower, better quality)
