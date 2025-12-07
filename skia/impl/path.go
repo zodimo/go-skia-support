@@ -34,6 +34,72 @@ func NewSkPath(fillType enums.PathFillType) interfaces.SkPath {
 	}
 }
 
+// NewPathRect creates a new path containing a rectangle.
+// This is a static factory method matching Skia's SkPath::Rect().
+func NewPathRect(rect Rect, fillType enums.PathFillType, dir enums.PathDirection, startIndex uint) interfaces.SkPath {
+	path := NewSkPath(fillType).(*pathImpl)
+	path.AddRect(rect, dir, startIndex)
+	return path
+}
+
+// NewPathRectDefault creates a new path containing a rectangle with default fill type.
+func NewPathRectDefault(rect Rect, dir enums.PathDirection, startIndex uint) interfaces.SkPath {
+	return NewPathRect(rect, enums.PathFillTypeDefault, dir, startIndex)
+}
+
+// NewPathOval creates a new path containing an oval (ellipse).
+// This is a static factory method matching Skia's SkPath::Oval().
+func NewPathOval(rect Rect, fillType enums.PathFillType, dir enums.PathDirection) interfaces.SkPath {
+	path := NewSkPath(fillType).(*pathImpl)
+	path.AddOval(rect, dir)
+	return path
+}
+
+// NewPathOvalDefault creates a new path containing an oval with default fill type.
+func NewPathOvalDefault(rect Rect, dir enums.PathDirection) interfaces.SkPath {
+	return NewPathOval(rect, enums.PathFillTypeDefault, dir)
+}
+
+// NewPathCircle creates a new path containing a circle.
+// This is a static factory method matching Skia's SkPath::Circle().
+func NewPathCircle(cx, cy, radius Scalar, fillType enums.PathFillType, dir enums.PathDirection) interfaces.SkPath {
+	path := NewSkPath(fillType).(*pathImpl)
+	path.AddCircle(cx, cy, radius, dir)
+	return path
+}
+
+// NewPathCircleDefault creates a new path containing a circle with default fill type.
+func NewPathCircleDefault(cx, cy, radius Scalar, dir enums.PathDirection) interfaces.SkPath {
+	return NewPathCircle(cx, cy, radius, enums.PathFillTypeDefault, dir)
+}
+
+// NewPathRRect creates a new path containing a rounded rectangle.
+// This is a static factory method matching Skia's SkPath::RRect().
+func NewPathRRect(rrect RRect, fillType enums.PathFillType, dir enums.PathDirection) interfaces.SkPath {
+	path := NewSkPath(fillType).(*pathImpl)
+	path.AddRRect(rrect, dir)
+	return path
+}
+
+// NewPathRRectDefault creates a new path containing a rounded rectangle with default fill type.
+func NewPathRRectDefault(rrect RRect, dir enums.PathDirection) interfaces.SkPath {
+	return NewPathRRect(rrect, enums.PathFillTypeDefault, dir)
+}
+
+// NewPathLine creates a new path containing a line segment.
+// This is a static factory method matching Skia's SkPath::Line().
+func NewPathLine(a, b Point, fillType enums.PathFillType) interfaces.SkPath {
+	path := NewSkPath(fillType).(*pathImpl)
+	path.MoveToPoint(a)
+	path.LineToPoint(b)
+	return path
+}
+
+// NewPathLineDefault creates a new path containing a line segment with default fill type.
+func NewPathLineDefault(a, b Point) interfaces.SkPath {
+	return NewPathLine(a, b, enums.PathFillTypeDefault)
+}
+
 // FillType returns the fill type used to determine which parts are inside.
 func (p *pathImpl) FillType() enums.PathFillType {
 	return p.fillType

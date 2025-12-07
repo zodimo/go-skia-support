@@ -60,6 +60,40 @@ func NewMatrixSkew(kx, ky Scalar) SkMatrix {
 	return m
 }
 
+// NewMatrixRotateRad creates a rotation matrix from radians.
+// Rotation in radians, positive rotates clockwise.
+func NewMatrixRotateRad(rad Scalar) SkMatrix {
+	deg := rad * 180.0 / math.Pi
+	return NewMatrixRotate(deg)
+}
+
+// NewMatrixRotateWithPivot creates a rotation matrix about a pivot point.
+// Rotation in degrees, positive rotates clockwise.
+func NewMatrixRotateWithPivot(deg Scalar, px, py Scalar) SkMatrix {
+	m := &Matrix{}
+	m.SetRotate(deg, px, py)
+	return m
+}
+
+// NewMatrixAll creates a matrix from all nine values:
+//
+//	| scaleX  skewX transX |
+//	|  skewY scaleY transY |
+//	| persp0 persp1 persp2 |
+func NewMatrixAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2 Scalar) SkMatrix {
+	m := &Matrix{}
+	m.SetAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2)
+	return m
+}
+
+// NewMatrixScaleTranslate creates a matrix that scales and then translates.
+// Equivalent to Scale(sx, sy) * Translate(tx, ty)
+func NewMatrixScaleTranslate(sx, sy, tx, ty Scalar) SkMatrix {
+	m := NewMatrixScale(sx, sy)
+	m.PostTranslate(tx, ty)
+	return m
+}
+
 var _ SkMatrix = (*Matrix)(nil)
 
 // Matrix represents a 3x3 transformation matrix.
@@ -93,6 +127,13 @@ func (m Matrix) MapPoint(pt Point) Point {
 		return m.mapPointPerspective(pt)
 	}
 	return m.mapPointAffine(pt)
+}
+
+// MapXY transforms a single x,y coordinate pair using the matrix.
+// Returns the transformed (x, y) coordinates.
+func (m Matrix) MapXY(x, y Scalar) (Scalar, Scalar) {
+	pt := m.MapPoint(Point{X: x, Y: y})
+	return pt.X, pt.Y
 }
 
 // mapPointAffine transforms a point assuming the matrix has no perspective.
@@ -390,6 +431,109 @@ func (m Matrix) GetPerspY() Scalar {
 	return m.mat[kMPersp1]
 }
 
+// Get returns one matrix value by index.
+// Index must be one of: kMScaleX (0), kMSkewX (1), kMTransX (2), kMSkewY (3),
+// kMScaleY (4), kMTransY (5), kMPersp0 (6), kMPersp1 (7), kMPersp2 (8)
+func (m Matrix) Get(index int) Scalar {
+	if index >= 0 && index < 9 {
+		return m.mat[index]
+	}
+	return 0
+}
+
+// Get9 copies all nine matrix values into a buffer.
+// Values are in member value ascending order: kMScaleX, kMSkewX, kMTransX,
+// kMSkewY, kMScaleY, kMTransY, kMPersp0, kMPersp1, kMPersp2
+func (m Matrix) Get9() [9]Scalar {
+	return m.mat
+}
+
+// GetRC returns one matrix value from a particular row/column.
+// Row and column must be in range [0, 2]
+func (m Matrix) GetRC(row, col int) Scalar {
+	if row >= 0 && row <= 2 && col >= 0 && col <= 2 {
+		return m.mat[row*3+col]
+	}
+	return 0
+}
+
+// Set sets one matrix value by index and invalidates the type cache.
+// Index must be one of: kMScaleX (0), kMSkewX (1), kMTransX (2), kMSkewY (3),
+// kMScaleY (4), kMTransY (5), kMPersp0 (6), kMPersp1 (7), kMPersp2 (8)
+func (m *Matrix) Set(index int, value Scalar) {
+	if index >= 0 && index < 9 {
+		m.mat[index] = value
+		// Type mask will be recomputed on next GetType() call
+	}
+}
+
+// Set9 sets all nine matrix values from a buffer.
+// Values are in member value ascending order: kMScaleX, kMSkewX, kMTransX,
+// kMSkewY, kMScaleY, kMTransY, kMPersp0, kMPersp1, kMPersp2
+func (m *Matrix) Set9(values [9]Scalar) {
+	m.mat = values
+	// Type mask will be recomputed on next GetType() call
+}
+
+// SetAll sets all nine matrix values from parameters.
+// Sets matrix to:
+//
+//	| scaleX  skewX transX |
+//	|  skewY scaleY transY |
+//	| persp0 persp1 persp2 |
+func (m *Matrix) SetAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2 Scalar) {
+	m.mat[kMScaleX] = scaleX
+	m.mat[kMSkewX] = skewX
+	m.mat[kMTransX] = transX
+	m.mat[kMSkewY] = skewY
+	m.mat[kMScaleY] = scaleY
+	m.mat[kMTransY] = transY
+	m.mat[kMPersp0] = persp0
+	m.mat[kMPersp1] = persp1
+	m.mat[kMPersp2] = persp2
+	// Type mask will be recomputed on next GetType() call
+}
+
+// SetScaleX sets the horizontal scale factor.
+func (m *Matrix) SetScaleX(v Scalar) {
+	m.Set(kMScaleX, v)
+}
+
+// SetScaleY sets the vertical scale factor.
+func (m *Matrix) SetScaleY(v Scalar) {
+	m.Set(kMScaleY, v)
+}
+
+// SetSkewX sets the horizontal skew factor.
+func (m *Matrix) SetSkewX(v Scalar) {
+	m.Set(kMSkewX, v)
+}
+
+// SetSkewY sets the vertical skew factor.
+func (m *Matrix) SetSkewY(v Scalar) {
+	m.Set(kMSkewY, v)
+}
+
+// SetTranslateX sets the horizontal translation.
+func (m *Matrix) SetTranslateX(v Scalar) {
+	m.Set(kMTransX, v)
+}
+
+// SetTranslateY sets the vertical translation.
+func (m *Matrix) SetTranslateY(v Scalar) {
+	m.Set(kMTransY, v)
+}
+
+// SetPerspX sets the input x-axis perspective factor.
+func (m *Matrix) SetPerspX(v Scalar) {
+	m.Set(kMPersp0, v)
+}
+
+// SetPerspY sets the input y-axis perspective factor.
+func (m *Matrix) SetPerspY(v Scalar) {
+	m.Set(kMPersp1, v)
+}
+
 // IsIdentity returns true if the matrix is the identity matrix.
 func (m Matrix) IsIdentity() bool {
 	return m.isIdentity()
@@ -399,6 +543,17 @@ func (m Matrix) IsIdentity() bool {
 func (m Matrix) IsScaleTranslate() bool {
 	return m.mat[kMSkewX] == 0 && m.mat[kMSkewY] == 0 &&
 		m.mat[kMPersp0] == 0 && m.mat[kMPersp1] == 0 && m.mat[kMPersp2] == 1
+}
+
+// IsTranslate returns true if the matrix is identity or only translates.
+// Matrix form is:
+//
+//	| 1 0 translate-x |
+//	| 0 1 translate-y |
+//	| 0 0      1      |
+func (m Matrix) IsTranslate() bool {
+	mask := m.GetType()
+	return (mask &^ enums.MatrixTypeTranslate) == 0
 }
 
 // HasPerspective returns true if the matrix has perspective.
@@ -660,6 +815,21 @@ func (m *Matrix) Invert() (SkMatrix, bool) {
 	}
 
 	return inv, true
+}
+
+// Equals compares two matrices for equality.
+// Returns true if all nine matrix values are equal.
+func (m Matrix) Equals(other SkMatrix) bool {
+	if other == nil {
+		return false
+	}
+	otherMat := other.(*Matrix)
+	for i := 0; i < 9; i++ {
+		if m.mat[i] != otherMat.mat[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func (m Matrix) isFinite() bool {
