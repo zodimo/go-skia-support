@@ -4,7 +4,7 @@
 			"path": "."
 		},
 		{
-			"path": "../skia-source"
+			"path": "../../clones/skia-source"
 		}
 	],
 	"settings": {}
