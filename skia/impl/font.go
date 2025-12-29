@@ -257,6 +257,29 @@ func (f *Font) UnicharToGlyph(unichar rune) uint16 {
 	return f.typeface.UnicharToGlyph(unichar)
 }
 
+// GetWidths returns the advance widths for a slice of glyph IDs.
+// This is a simplified implementation for MVP.
+// In a real implementation, this would use the scaler context or cache.
+func (f *Font) GetWidths(glyphs []uint16) []Scalar {
+	// TODO: blocked by lack of SkScalerContext and SkStrike implementation in Go port.
+	// In C++, this calls SkFont::getWidthsBounds which uses SkStrikeSpec::MakeCanonicalized
+	// to get a SkScalerContext and retrieve metrics from the font cache.
+	// For now, we use a heuristic relevant for testing the Shaper logic.
+
+	if len(glyphs) == 0 {
+		return nil
+	}
+	widths := make([]Scalar, len(glyphs))
+	// Simplified MVP logic: width = size * 0.6 * scaleX
+	// This assumes a monospaced-like behavior for "Primitive" shaping.
+	// Real implementation would look up glyph metrics.
+	charWidth := f.size * 0.6 * f.scaleX
+	for i := range glyphs {
+		widths[i] = charWidth
+	}
+	return widths
+}
+
 // Equals compares two fonts for equality.
 func (f *Font) Equals(other *Font) bool {
 	if f == nil && other == nil {

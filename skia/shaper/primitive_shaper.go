@@ -2,6 +2,7 @@ package shaper
 
 import (
 	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // PrimitiveShaper is a basic implementation of the Shaper interface.
@@ -140,13 +141,60 @@ func (ps *PrimitiveShaper) shapeRun(text string, start, end int,
 	font interfaces.SkFont, bidiLevel uint8, script uint32, lang string,
 	width float32, runHandler RunHandler) {
 
-	// Placeholder for Story 1: report the run range so we can test the loop logic.
-	info := RunInfo{
-		Font:      font,
-		BidiLevel: bidiLevel,
-		Utf8Range: Range{Begin: start, End: end},
+	// 1. Convert text range to runes and map to glyphs
+	runText := text[start:end]
+	runes := []rune(runText)
+	count := len(runes)
+
+	if count == 0 {
+		return
 	}
+
+	glyphs := make([]uint16, count)
+	for i, r := range runes {
+		glyphs[i] = font.UnicharToGlyph(r)
+	}
+
+	// 2. Get glyph widths
+	widths := font.GetWidths(glyphs)
+
+	// 3. Compute positions (advance)
+	positions := make([]models.Point, count)
+	var currentX float32 = 0
+	for i, w := range widths {
+		positions[i] = models.Point{X: models.Scalar(currentX), Y: 0}
+		currentX += float32(w)
+	}
+
+	// 4. Create RunInfo
+	info := RunInfo{
+		Font:       font,
+		BidiLevel:  bidiLevel,
+		Advance:    models.Point{X: models.Scalar(currentX), Y: 0},
+		GlyphCount: uint64(count),
+		Utf8Range:  Range{Begin: start, End: end},
+	}
+
+	// 5. Interact with Handler
 	runHandler.RunInfo(info)
+	buffer := runHandler.RunBuffer(info)
+
+	// Fill buffer
+	copy(buffer.Glyphs, glyphs)
+	copy(buffer.Positions, positions)
+	// For primitive shaper, Clusters map 1:1 to indices if we assume 1 rune = 1 char = 1 glyph map
+	// But actually clusters map back to original text byte offset.
+	// Since we are iterating runes, we need to track byte offsets.
+
+	// Re-calculate clusters based on byte offsets
+	byteOffset := start
+	for i, r := range runes {
+		buffer.Clusters[i] = uint32(byteOffset)
+		byteOffset += len(string(r))
+	}
+	// buffer.Offsets is usually optionally used for justifying, we can leave zero for now.
+
+	runHandler.CommitRunBuffer(info)
 }
 
 // Helper utility for min (not strictly needed since we expanded it above for clarity)

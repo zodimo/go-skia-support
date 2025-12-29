@@ -3,7 +3,9 @@ package shaper
 import (
 	"testing"
 
+	"github.com/zodimo/go-skia-support/skia/impl"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // MockRunHandler captures calls for verification
@@ -12,6 +14,7 @@ type MockRunHandler struct {
 	CommitLineCalled   bool
 	RunInfos           []RunInfo
 	CommitRunInfoCount int
+	Buffers            []Buffer
 }
 
 func (m *MockRunHandler) BeginLine() {
@@ -27,7 +30,23 @@ func (m *MockRunHandler) CommitRunInfo() {
 }
 
 func (m *MockRunHandler) RunBuffer(info RunInfo) Buffer {
-	return Buffer{}
+	// Return a buffer with allocated slices to avoid nil pointer panic if shaper writes to it
+	count := int(info.GlyphCount)
+	buffer := Buffer{
+		Glyphs:    make([]uint16, count),
+		Positions: make([]models.Point, count),
+		Clusters:  make([]uint32, count),
+	}
+	m.Buffers = append(m.Buffers, buffer)
+	// Return pointer to the last appended buffer?
+	// Slice append copies struct. We need to return the one that will be inspected.
+	// But RunBuffer returns Buffer struct, not pointer.
+	// So PrimitiveShaper writes to the returned Buffer struct which is a copy?
+	// In C++, Buffer contains pointers to storage.
+	// In Go, Buffer definition in handler.go has slices:
+	// type Buffer struct { Glyphs []uint16, Positions []models.Point ... }
+	// So copying Buffer struct copies slice headers. Writing to slices works.
+	return buffer
 }
 
 func (m *MockRunHandler) CommitRunBuffer(info RunInfo) {
@@ -68,7 +87,7 @@ func (m *MockIterator) AtEnd() bool {
 // Implement specific iterator types embedding MockIterator
 type MockFontIterator struct{ *MockIterator }
 
-func (m *MockFontIterator) CurrentFont() interfaces.SkFont { return nil }
+func (m *MockFontIterator) CurrentFont() interfaces.SkFont { return impl.NewFont() }
 
 type MockBiDiIterator struct{ *MockIterator }
 
@@ -90,7 +109,8 @@ func TestPrimitiveShaper_Shape_LoopLogic(t *testing.T) {
 	// Case 1: All trivial (no breaks)
 	// Expect 1 run covering 0-10
 	handler := &MockRunHandler{}
-	shaper.Shape(text, nil, true, 100, handler)
+	font := impl.NewFont()
+	shaper.Shape(text, font, true, 100, handler)
 
 	if !handler.BeginLineCalled {
 		t.Error("BeginLine not called")
@@ -156,5 +176,43 @@ func TestPrimitiveShaper_ShapeWithIterators_Breaks(t *testing.T) {
 		if got.Begin != exp.begin || got.End != exp.end {
 			t.Errorf("Run %d mismatch: expected [%d, %d), got [%d, %d)", i, exp.begin, exp.end, got.Begin, got.End)
 		}
+	}
+}
+
+// MockFont for testing
+type MockFont struct {
+	interfaces.SkFont
+}
+
+func (m *MockFont) UnicharToGlyph(unichar rune) uint16 {
+	return uint16(unichar) // Identity mapping for test
+}
+
+func (m *MockFont) GetWidths(glyphs []uint16) []models.Scalar {
+	widths := make([]models.Scalar, len(glyphs))
+	for i := range glyphs {
+		widths[i] = 10.0 // Constant width
+	}
+	return widths
+}
+
+func TestPrimitiveShaper_Shape_SimpleRun(t *testing.T) {
+	shaper := NewPrimitiveShaper()
+	text := "ABC"
+	font := &MockFont{}
+	handler := &MockRunHandler{}
+
+	shaper.Shape(text, font, true, 100, handler)
+
+	if len(handler.RunInfos) != 1 {
+		t.Fatalf("Expected 1 run, got %d", len(handler.RunInfos))
+	}
+
+	info := handler.RunInfos[0]
+	if info.GlyphCount != 3 {
+		t.Errorf("Expected 3 glyphs, got %d", info.GlyphCount)
+	}
+	if info.Advance.X != 30.0 {
+		t.Errorf("Expected advance 30.0, got %f", info.Advance.X)
 	}
 }

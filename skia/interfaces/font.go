@@ -98,6 +98,12 @@ type SkFont interface {
 	// Ported from: SkFont::unicharToGlyph
 	UnicharToGlyph(unichar rune) uint16
 
+	// GetWidths returns the advance widths for a slice of glyph IDs.
+	// If the slice is empty, returns nil.
+	// The returned slice has the same length as the input slice.
+	// Ported from: SkFont::getWidths
+	GetWidths(glyphs []uint16) []Scalar
+
 	// MeasureText returns the advance width of text.
 	// The advance is the normal distance to move before drawing additional text.
 	// If bounds is not nil, also returns the bounding box of text.
