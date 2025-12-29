@@ -216,3 +216,45 @@ func TestPrimitiveShaper_Shape_SimpleRun(t *testing.T) {
 		t.Errorf("Expected advance 30.0, got %f", info.Advance.X)
 	}
 }
+
+func TestPrimitiveShaper_Shape_ComplexUTF8(t *testing.T) {
+	shaper := NewPrimitiveShaper()
+	// "A👋B" -> "A" (1 byte), "👋" (4 bytes), "B" (1 byte)
+	text := "A👋B"
+	font := &MockFont{}
+	handler := &MockRunHandler{}
+
+	shaper.Shape(text, font, true, 500, handler, nil)
+
+	if len(handler.RunInfos) != 1 {
+		t.Fatalf("Expected 1 run, got %d", len(handler.RunInfos))
+	}
+
+	if len(handler.Buffers) != 1 {
+		t.Fatalf("Expected 1 buffer, got %d", len(handler.Buffers))
+	}
+
+	buffer := handler.Buffers[0]
+	// Expected clusters:
+	// 'A' at 0
+	// '👋' at 1
+	// 'B' at 5 (1 + 4)
+	expectedClusters := []uint32{0, 1, 5}
+	if len(buffer.Clusters) != len(expectedClusters) {
+		t.Fatalf("Expected %d clusters, got %d", len(expectedClusters), len(buffer.Clusters))
+	}
+
+	for i, exp := range expectedClusters {
+		if buffer.Clusters[i] != exp {
+			t.Errorf("Cluster %d mismatch: expected %d, got %d", i, exp, buffer.Clusters[i])
+		}
+	}
+
+	// Verify glyphs
+	runes := []rune(text)
+	for i, r := range runes {
+		if buffer.Glyphs[i] != uint16(r) {
+			t.Errorf("Glyph %d mismatch: expected %d, got %d", i, uint16(r), buffer.Glyphs[i])
+		}
+	}
+}

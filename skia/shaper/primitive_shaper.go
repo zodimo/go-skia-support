@@ -1,6 +1,8 @@
 package shaper
 
 import (
+	"unicode/utf8"
+
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
@@ -191,7 +193,7 @@ func (ps *PrimitiveShaper) shapeRun(text string, start, end int,
 	byteOffset := start
 	for i, r := range runes {
 		buffer.Clusters[i] = uint32(byteOffset)
-		byteOffset += len(string(r))
+		byteOffset += utf8.RuneLen(r)
 	}
 	// buffer.Offsets is usually optionally used for justifying, we can leave zero for now.
 
