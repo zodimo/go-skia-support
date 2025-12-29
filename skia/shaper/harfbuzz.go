@@ -253,6 +253,7 @@ func reverseSlice(slice []int, start, end int) {
 
 // shapeRunCollect shapes a run and returns the data without calling RunHandler callbacks.
 // Returns nil if the run produces no glyphs.
+// The full text is passed to enable contextual shaping (ligatures/cursive joins across run boundaries).
 func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 	skFont interfaces.SkFont, bidiLevel uint8, script uint32, lang string,
 	features []Feature) *shapedRunData {
@@ -265,11 +266,40 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 		return nil
 	}
 
-	// 2. Prepare Input
-	// Convert the run text to runes for HarfBuzz.
-	// We assume text[start:end] are valid byte boundaries from the iterator.
-	// If the text contains invalid UTF-8, string->[]rune will insert utf8.RuneError, which is acceptable.
-	runText := []rune(text[start:end])
+	// 2. Prepare Input with full text for contextual shaping
+	// Convert the FULL text to runes, then specify the run range.
+	// This allows HarfBuzz to see context before and after the run.
+	fullTextRunes := []rune(text)
+
+	// Map byte offsets to rune indices
+	// We need to find which rune indices correspond to byte offsets 'start' and 'end'
+	byteToRuneStart := 0
+	byteToRuneEnd := 0
+	currentByte := 0
+	for i, r := range fullTextRunes {
+		if currentByte == start {
+			byteToRuneStart = i
+		}
+		if currentByte == end {
+			byteToRuneEnd = i
+			break
+		}
+		currentByte += len(string(r))
+	}
+	// Handle case where end is at the end of text
+	if currentByte == end {
+		byteToRuneEnd = len(fullTextRunes)
+	}
+	// If start was at the very end
+	if currentByte < start {
+		byteToRuneStart = len(fullTextRunes)
+	}
+
+	// Ensure valid range
+	if byteToRuneEnd <= byteToRuneStart {
+		// Empty or invalid run
+		return nil
+	}
 
 	textSize := skFont.Size()
 
@@ -291,9 +321,9 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 	}
 
 	input := shaping.Input{
-		Text:         runText,
-		RunStart:     0,
-		RunEnd:       len(runText),
+		Text:         fullTextRunes,   // Full text for context
+		RunStart:     byteToRuneStart, // Start of this run in runes
+		RunEnd:       byteToRuneEnd,   // End of this run in runes
 		Direction:    dir,
 		Face:         face,
 		Size:         floatToFixed(float32(textSize)),
@@ -316,18 +346,18 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 	clusters := make([]uint32, count)
 
 	// We need to map clusters back to the original byte offset.
-	// `output.Glyphs[i].ClusterIndex` is index in `runText` (rune index).
+	// `output.Glyphs[i].ClusterIndex` is index in `fullTextRunes` (rune index).
 	// We need to convert rune index -> byte offset in `text`.
-	// Need a helper to map rune index to byte offset.
+	// Build a complete rune-to-byte mapping for the portion we shaped.
 
-	// Create map: runeIndex -> byteOffset relative to start
-	runeToByte := make([]int, len(runText)+1)
+	// Create map: runeIndex -> byteOffset for the full text
+	runeToByte := make([]int, len(fullTextRunes)+1)
 	byteOff := 0
-	for i, r := range runText {
+	for i, r := range fullTextRunes {
 		runeToByte[i] = byteOff
 		byteOff += len(string(r))
 	}
-	runeToByte[len(runText)] = byteOff
+	runeToByte[len(fullTextRunes)] = byteOff
 
 	var currentX float32 = 0
 	var currentY float32 = 0
@@ -360,12 +390,12 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 		currentX += fixedToFloat(g.XAdvance)
 		currentY += -fixedToFloat(g.YAdvance)
 
-		// Clusters
+		// Clusters - ClusterIndex is now relative to full text runes
 		runeIdx := g.ClusterIndex
 		if runeIdx < len(runeToByte) {
-			clusters[i] = uint32(start + runeToByte[runeIdx])
+			clusters[i] = uint32(runeToByte[runeIdx])
 		} else {
-			clusters[i] = uint32(start + runeToByte[len(runeToByte)-1]) // End
+			clusters[i] = uint32(runeToByte[len(runeToByte)-1]) // End
 		}
 	}
 
