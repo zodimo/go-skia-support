@@ -6,33 +6,9 @@ import (
 
 	"github.com/go-text/typesetting/font"
 	"github.com/zodimo/go-skia-support/skia/impl"
-	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 	"golang.org/x/image/font/gofont/goregular"
 )
-
-// MockTypefaceForHarfbuzz implements SkTypeface and UseGoTextFace.
-type MockTypefaceForHarfbuzz struct {
-	interfaces.SkTypeface
-	face *font.Face
-}
-
-func (m *MockTypefaceForHarfbuzz) GoTextFace() *font.Face {
-	return m.face
-}
-
-// We rely on embedding interfaces.SkTypeface to satisfy the interface,
-// but we need a concrete implementation to forward to.
-// impl.Typeface provides basic impl.
-// However, impl.Typeface usage in testing:
-// we should probably just embed *impl.Typeface struct.
-
-func NewMockTypefaceForHarfbuzz(face *font.Face) *MockTypefaceForHarfbuzz {
-	return &MockTypefaceForHarfbuzz{
-		SkTypeface: impl.NewDefaultTypeface(),
-		face:       face,
-	}
-}
 
 func TestHarfbuzzShaper_Shape(t *testing.T) {
 	// 1. Prepare Font
@@ -41,9 +17,9 @@ func TestHarfbuzzShaper_Shape(t *testing.T) {
 		t.Fatalf("Failed to parse goremular: %v", err)
 	}
 
-	mockTypeface := NewMockTypefaceForHarfbuzz(parsed)
+	skTypeface := impl.NewTypefaceWithTypefaceFace("regular", models.FontStyle{Weight: 400, Width: 5, Slant: 0}, parsed)
 	skFont := impl.NewFont()
-	skFont.SetTypeface(mockTypeface)
+	skFont.SetTypeface(skTypeface)
 	skFont.SetSize(16)
 
 	// 2. Prepare Handler

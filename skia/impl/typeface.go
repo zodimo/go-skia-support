@@ -2,6 +2,8 @@ package impl
 
 import (
 	"sync/atomic"
+
+	"github.com/go-text/typesetting/font"
 )
 
 // Global unique ID counter for typefaces
@@ -21,6 +23,7 @@ type Typeface struct {
 	familyName string
 	uniqueID   uint32
 	fixedPitch bool
+	goTextFace *font.Face
 }
 
 // NewDefaultTypeface creates a new typeface with default style.
@@ -43,6 +46,17 @@ func NewTypeface(familyName string, style FontStyle) *Typeface {
 	}
 }
 
+// NewTypefaceWithTypefaceFace creates a new typeface with a go-text/typesetting Face.
+func NewTypefaceWithTypefaceFace(familyName string, style FontStyle, face *font.Face) *Typeface {
+	return &Typeface{
+		style:      style,
+		familyName: familyName,
+		uniqueID:   nextTypefaceID(),
+		fixedPitch: false,
+		goTextFace: face,
+	}
+}
+
 // NewTypefaceWithOptions creates a new typeface with all options.
 func NewTypefaceWithOptions(familyName string, style FontStyle, fixedPitch bool) *Typeface {
 	return &Typeface{
@@ -51,6 +65,11 @@ func NewTypefaceWithOptions(familyName string, style FontStyle, fixedPitch bool)
 		uniqueID:   nextTypefaceID(),
 		fixedPitch: fixedPitch,
 	}
+}
+
+// GoTextFace returns the underlying go-text/typesetting Face, if any.
+func (t *Typeface) GoTextFace() *font.Face {
+	return t.goTextFace
 }
 
 // FontStyle returns the typeface's intrinsic style attributes.

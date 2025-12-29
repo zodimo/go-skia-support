@@ -119,16 +119,16 @@ func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
 	face := resolveFace(skFont)
 	if face == nil {
 		// Cannot shape without a face that supports go-text/typesetting
-		// Maybe panic or log? For now, simpler to just return or generic fallback (which we don't have)
+		// Cannot shape without a face that supports go-text/typesetting
+		log.Println("HarfbuzzShaper: typeface does not implement UseGoTextFace or returns nil")
 		return
 	}
 
 	// 2. Prepare Input
-	runText := []rune(text[start:end]) // This is naive byte-to-rune slicing. Harfbuzz expects runes.
-	// WARNING: primitive_shaper slicing assumption `text[start:end]` is byte-based.
-	// But `runText` needs to be runes.
-	// Correct logic: `text[start:end]` is the byte slice. Convert that to runes.
-	// TODO: Handle invalid UTF-8 cleanly.
+	// Convert the run text to runes for HarfBuzz.
+	// We assume text[start:end] are valid byte boundaries from the iterator.
+	// If the text contains invalid UTF-8, string->[]rune will insert utf8.RuneError, which is acceptable.
+	runText := []rune(text[start:end])
 
 	textSize := skFont.Size()
 
@@ -143,9 +143,10 @@ func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
 		RunEnd:    len(runText),
 		Direction: dir,
 		Face:      face,
-		Size:      floatToFixed(float32(textSize)), // Conversion helper needed
-		Script:    language.Script(script),         // Cast uint32 to script? Need mapping.
-		// Language: language.NewLanguage(lang),
+		Size:      floatToFixed(float32(textSize)),
+		Script:    language.Script(script),
+		// Language: language.NewLanguage(lang), (Future optimization: map language string)
+		// Features: []shaping.Feature{}, // TODO: Expose feature setting in Shape/ShapeWithIterators
 	}
 
 	// 3. Shape
@@ -192,8 +193,11 @@ func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
 		// pos[i] = (currentX, currentY) + offset
 		// currentX += advance
 
+		// Skia is Y-down, HarfBuzz is Y-up.
+		// We must flip the Y components of offset and advance.
+		// Effectively: skiaY = -hbY
 		padX := fixedToFloat(g.XOffset)
-		padY := fixedToFloat(g.YOffset)
+		padY := -fixedToFloat(g.YOffset)
 
 		positions[i] = models.Point{
 			X: models.Scalar(currentX + padX),
@@ -201,7 +205,7 @@ func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
 		}
 
 		currentX += fixedToFloat(g.XAdvance)
-		currentY += fixedToFloat(g.YAdvance)
+		currentY += -fixedToFloat(g.YAdvance)
 
 		// Clusters
 		runeIdx := g.ClusterIndex
