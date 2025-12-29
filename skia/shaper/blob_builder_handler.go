@@ -13,16 +13,18 @@ import (
 // Ported from: skia-source/modules/skshaper/include/SkShaper.h (SkTextBlobBuilderRunHandler)
 // Implementation: skia-source/modules/skshaper/src/SkShaper.cpp
 type TextBlobBuilderRunHandler struct {
-	builder         *impl.TextBlobBuilder
-	utf8Text        string
-	offset          models.Point
-	clusters        []uint32
-	clusterOffset   int
-	glyphCount      int
-	maxRunAscent    models.Scalar
-	maxRunDescent   models.Scalar
-	maxRunLeading   models.Scalar
-	currentPosition models.Point
+	builder             *impl.TextBlobBuilder
+	utf8Text            string
+	offset              models.Point
+	clusters            []uint32
+	clusterOffset       int
+	glyphCount          int
+	maxRunAscent        models.Scalar
+	maxRunDescent       models.Scalar
+	maxRunLeading       models.Scalar
+	currentPosition     models.Point
+	currentImplBuffer   *impl.RunBuffer
+	currentShaperBuffer Buffer
 }
 
 // NewTextBlobBuilderRunHandler creates a new TextBlobBuilderRunHandler.
@@ -92,10 +94,10 @@ func (h *TextBlobBuilderRunHandler) RunBuffer(info RunInfo) Buffer {
 		return Buffer{}
 	}
 
-	// Allocate run with full positioning (x, y for each glyph)
-	runBuffer := h.builder.AllocRunPos(info.Font, glyphCount)
-	if runBuffer == nil {
-		return Buffer{}
+	// Allocate run with full positioning (x, y for each glyph) in the builder
+	h.currentImplBuffer = h.builder.AllocRunPos(info.Font, glyphCount)
+	if h.currentImplBuffer == nil {
+		return Buffer{} // Allocation failed
 	}
 
 	h.glyphCount = glyphCount
@@ -104,33 +106,45 @@ func (h *TextBlobBuilderRunHandler) RunBuffer(info RunInfo) Buffer {
 	// Create cluster array for mapping glyphs back to text positions
 	h.clusters = make([]uint32, glyphCount)
 
-	// Convert positions from Scalar slice to Point slice
+	// Create temporary buffers for the shaper to write into.
+	// We cannot pass the builder's buffer directly because the types don't match
+	// (impl.GlyphID vs uint16, Scalar flat array vs Point struct array).
 	positions := make([]models.Point, glyphCount)
-	for i := 0; i < glyphCount; i++ {
-		// Initialize positions to zero; the shaper will fill them in
-		positions[i] = models.Point{X: 0, Y: 0}
-	}
-
-	// Convert []impl.GlyphID to []uint16 for the Buffer
 	glyphs := make([]uint16, glyphCount)
 
-	return Buffer{
+	// Keep track of these buffers so we can copy them back in CommitRunBuffer
+	h.currentShaperBuffer = Buffer{
 		Glyphs:    glyphs,
 		Positions: positions,
 		Offsets:   nil, // Not used in this implementation
 		Clusters:  h.clusters,
 		Point:     h.currentPosition,
 	}
+
+	return h.currentShaperBuffer
 }
 
 // CommitRunBuffer commits the run buffer.
 // Called after each runBuffer is filled out.
 func (h *TextBlobBuilderRunHandler) CommitRunBuffer(info RunInfo) {
 	// Adjust cluster indices by subtracting the cluster offset.
-	// This normalizes the cluster indices to be relative to the run's text range.
 	for i := 0; i < h.glyphCount; i++ {
 		if int(h.clusters[i]) >= h.clusterOffset {
 			h.clusters[i] -= uint32(h.clusterOffset)
+		}
+	}
+
+	// Copy data from shaper buffer to implementation buffer
+	if h.currentImplBuffer != nil {
+		// Copy Glyphs
+		for i, g := range h.currentShaperBuffer.Glyphs {
+			h.currentImplBuffer.Glyphs[i] = impl.GlyphID(g)
+		}
+
+		// Copy Positions (flatten Point{X,Y} to [X0,Y0, X1,Y1...])
+		for i, p := range h.currentShaperBuffer.Positions {
+			h.currentImplBuffer.Positions[i*2] = impl.Scalar(p.X)
+			h.currentImplBuffer.Positions[i*2+1] = impl.Scalar(p.Y)
 		}
 	}
 
@@ -140,6 +154,10 @@ func (h *TextBlobBuilderRunHandler) CommitRunBuffer(info RunInfo) {
 
 	// Commit the run to the builder
 	h.builder.AddRun()
+
+	// Clear temporary buffers
+	h.currentImplBuffer = nil
+	h.currentShaperBuffer = Buffer{}
 }
 
 // CommitLine commits the line.
