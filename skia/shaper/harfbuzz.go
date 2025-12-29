@@ -121,7 +121,6 @@ func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
 	face := resolveFace(skFont)
 	if face == nil {
 		// Cannot shape without a face that supports go-text/typesetting
-		// Cannot shape without a face that supports go-text/typesetting
 		log.Println("HarfbuzzShaper: typeface does not implement UseGoTextFace or returns nil")
 		return
 	}
