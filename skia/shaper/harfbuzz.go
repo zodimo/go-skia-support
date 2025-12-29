@@ -77,6 +77,16 @@ func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 			end = langEnd
 		}
 
+		// Split at feature boundaries
+		for _, f := range features {
+			if f.Start > currentOffset && f.Start < end {
+				end = f.Start
+			}
+			if f.End > currentOffset && f.End < end {
+				end = f.End
+			}
+		}
+
 		if end <= currentOffset {
 			if end == totalLength {
 				break
@@ -141,17 +151,8 @@ func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
 	// Filter features used in this run
 	var runFeatures []shaping.FontFeature
 	for _, f := range features {
-		// Intersection of [start, end) and [f.Start, f.End)
-		// max(start, f.Start) < min(end, f.End)
-		fStart := f.Start
-		fEnd := f.End
-		if fStart < start {
-			fStart = start
-		}
-		if fEnd > end {
-			fEnd = end
-		}
-		if fStart < fEnd {
+		// Since we segmented by feature boundaries, a feature applies if it covers the entire segment.
+		if f.Start <= start && f.End >= end {
 			runFeatures = append(runFeatures, shaping.FontFeature{
 				Tag:   font.Tag(f.Tag),
 				Value: f.Value,
@@ -168,7 +169,7 @@ func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
 		Size:         floatToFixed(float32(textSize)),
 		Script:       language.Script(script),
 		FontFeatures: runFeatures,
-		// Language: language.NewLanguage(lang), (Future optimization: map language string)
+		Language:     language.NewLanguage(lang),
 	}
 
 	// 3. Shape

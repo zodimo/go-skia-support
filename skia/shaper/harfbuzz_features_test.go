@@ -12,10 +12,20 @@ import (
 )
 
 func TestHarfbuzzShaper_Features_Ligatures(t *testing.T) {
-	// 1. Prepare Font (Go Regular)
-	parsed, err := font.ParseTTF(bytes.NewReader(goregular.TTF))
+	// 1. Prepare Font
+	path := "/home/jaco/SecondBrain/1-Projects/GoCompose/clones/skia-source/resources/fonts/Roboto-Regular.ttf"
+	fontData, err := os.ReadFile(path)
+	var parsed *font.Face
+	if err == nil {
+		parsed, err = font.ParseTTF(bytes.NewReader(fontData))
+	}
+
 	if err != nil {
-		t.Fatalf("Failed to parse goregular: %v", err)
+		t.Logf("Failed to load Roboto-Regular.ttf, falling back to goregular: %v", err)
+		parsed, err = font.ParseTTF(bytes.NewReader(goregular.TTF))
+		if err != nil {
+			t.Fatalf("Failed to parse goregular: %v", err)
+		}
 	}
 
 	skTypeface := impl.NewTypefaceWithTypefaceFace("regular", models.FontStyle{Weight: 400, Width: 5, Slant: 0}, parsed)
@@ -24,93 +34,62 @@ func TestHarfbuzzShaper_Features_Ligatures(t *testing.T) {
 	skFont.SetSize(20)
 
 	text := "fi"
-
-	// 2. Shape without features (default)
-	// Usually defaults depend on HarfBuzz. Typically 'liga' is on for common scripts.
-	handlerDefault := NewTextBlobBuilderRunHandler(text, models.Point{X: 0, Y: 0})
 	shaper := NewHarfbuzzShaper()
-	shaper.Shape(text, skFont, true, 1000, handlerDefault, nil)
 
-	blobDefault := handlerDefault.MakeBlob().(*impl.TextBlob)
-	runsDefault := blobDefault.Run(0)
-	// Check if we got ligature (1 glyph) or not (2 glyphs)
-	countDefault := len(runsDefault.Glyphs)
-	t.Logf("Default shaping 'fi': %d glyphs", countDefault)
+	// Helper to shape with specific features and script
+	shapeWith := func(features []Feature) int {
+		handler := NewTextBlobBuilderRunHandler(text, models.Point{X: 0, Y: 0})
+		fontIter := NewTrivialFontRunIterator(skFont, len(text))
+		bidiIter := NewTrivialBiDiRunIterator(0, len(text))
+		// Use 'Latn' script for reliable ligature formation
+		scriptIter := NewTrivialScriptRunIterator(uint32('L')<<24|uint32('a')<<16|uint32('t')<<8|uint32('n'), len(text))
+		langIter := NewTrivialLanguageRunIterator("en", len(text))
 
-	// 3. Shape with 'liga' off (feature value 0)
-	handlerNoLiga := NewTextBlobBuilderRunHandler(text, models.Point{X: 0, Y: 0})
-	// 'liga' tag
-	// 'l' 'i' 'g' 'a'
-	ligaTag := uint32('l')<<24 | uint32('i')<<16 | uint32('g')<<8 | uint32('a')
-
-	featuresOff := []Feature{
-		{
-			Tag:   ligaTag,
-			Value: 0, // Disable
-			Start: 0,
-			End:   2,
-		},
+		shaper.ShapeWithIterators(text, fontIter, bidiIter, scriptIter, langIter, features, 1000, handler)
+		blob := handler.MakeBlob().(*impl.TextBlob)
+		if blob.RunCount() == 0 {
+			return 0
+		}
+		return len(blob.Run(0).Glyphs)
 	}
 
-	shaper.Shape(text, skFont, true, 1000, handlerNoLiga, featuresOff)
-	blobNoLiga := handlerNoLiga.MakeBlob().(*impl.TextBlob)
-	runsNoLiga := blobNoLiga.Run(0)
-	countNoLiga := len(runsNoLiga.Glyphs)
+	// 2. Shape with 'liga' off
+	ligaTag := uint32('l')<<24 | uint32('i')<<16 | uint32('g')<<8 | uint32('a')
+	featuresOff := []Feature{{Tag: ligaTag, Value: 0, Start: 0, End: 2}}
+	countNoLiga := shapeWith(featuresOff)
 	t.Logf("Computed 'fi' with liga=0: %d glyphs", countNoLiga)
 
-	// 4. Shape with 'liga' on (feature value 1)
-	handlerLiga := NewTextBlobBuilderRunHandler(text, models.Point{X: 0, Y: 0})
-	featuresOn := []Feature{
-		{
-			Tag:   ligaTag,
-			Value: 1, // Enable
-			Start: 0,
-			End:   2,
-		},
-	}
-	shaper.Shape(text, skFont, true, 1000, handlerLiga, featuresOn)
-	blobLiga := handlerLiga.MakeBlob().(*impl.TextBlob)
-	runsLiga := blobLiga.Run(0)
-	countLiga := len(runsLiga.Glyphs)
+	// 3. Shape with 'liga' on
+	featuresOn := []Feature{{Tag: ligaTag, Value: 1, Start: 0, End: 2}}
+	countLiga := shapeWith(featuresOn)
 	t.Logf("Computed 'fi' with liga=1: %d glyphs", countLiga)
 
-	// Verification logic
-	// If GoFont supports ligatures:
-	// Default might be 1 or 2.
-	// If liga=1, it should be 1 (if supported).
-	// If liga=0, it should be 2.
-
-	// Note: Go Regular might NOT support 'fi' ligature.
-	// We'll check counts. If counts are identical, either ligatures not supported or something failed.
-	if countNoLiga < countLiga {
-		t.Errorf("Disabling ligatures produced fewer glyphs (%d) than enabling them (%d) - unexpected", countNoLiga, countLiga)
+	// Assertions
+	if countNoLiga != 2 {
+		t.Errorf("Expected 2 glyphs with ligatures off, got %d", countNoLiga)
 	}
-
-	if countNoLiga == countLiga {
-		t.Log("Font may not support 'fi' ligature, counts are same. Skipping strict assertion.")
-	} else {
-		// Validated effect
-		t.Log("Feature 'liga' successfully controlled glyph count.")
+	if countLiga != 1 {
+		t.Errorf("Expected 1 glyph with ligatures on, got %d. Ligatures may not be working or font is missing them.", countLiga)
 	}
 }
 
 func TestHarfbuzzShaper_Variations(t *testing.T) {
-	path := "/home/jaco/SecondBrain/1-Projects/GoCompose/clones/skia-source/resources/fonts/Distortable.ttf"
+	path := "/home/jaco/SecondBrain/1-Projects/GoCompose/clones/skia-source/resources/fonts/Variable.ttf"
 	fontData, err := os.ReadFile(path)
 	if err != nil {
-		t.Skipf("Skipping variation test: could not read Distortable.ttf: %v", err)
+		t.Skipf("Skipping variation test: could not read Variable.ttf: %v", err)
 	}
 
 	parsed, err := font.ParseTTF(bytes.NewReader(fontData))
 	if err != nil {
-		t.Fatalf("Failed to parse Distortable.ttf: %v", err)
+		t.Fatalf("Failed to parse Variable.ttf: %v", err)
 	}
 
 	style := models.FontStyle{Weight: 400, Width: 5, Slant: 0}
-	baseTf := impl.NewTypefaceWithTypefaceFace("Distortable", style, parsed)
+	baseTf := impl.NewTypefaceWithTypefaceFace("Variable", style, parsed)
 
-	// 'wght' tag
-	wghtTag := uint32('w')<<24 | uint32('g')<<16 | uint32('h')<<8 | uint32('t')
+	// 'wdth' tag
+	wdthTag := uint32('w')<<24 | uint32('d')<<16 | uint32('t')<<8 | uint32('h')
 
 	// 1. Shape with default
 	fontDefault := impl.NewFont()
@@ -118,21 +97,22 @@ func TestHarfbuzzShaper_Variations(t *testing.T) {
 	fontDefault.SetSize(20)
 
 	shaper := NewHarfbuzzShaper()
-	text := "abc"
+	text := "aa"
 	handlerDef := NewTextBlobBuilderRunHandler(text, models.Point{X: 0, Y: 0})
 	shaper.Shape(text, fontDefault, true, 1000, handlerDef, nil)
 
 	blobDef := handlerDef.MakeBlob().(*impl.TextBlob)
 	runDef := blobDef.Run(0)
-	widthDef := runDef.Positions[1].X - runDef.Positions[0].X
+	if len(runDef.Positions) < 2 {
+		t.Fatalf("Expected at least 2 glyph positions for 'aa', got %d", len(runDef.Positions))
+	}
+	widthDef := float32(runDef.Positions[1].X - runDef.Positions[0].X)
 
-	// 2. Shape with variation
-	// Create clone with weight variation
+	// 2. Shape with variation (Extremes)
 	args := models.FontArguments{
 		VariationDesignPosition: models.VariationPosition{
 			Coordinates: []models.VariationCoordinate{
-				{Axis: wghtTag, Value: 1.5}, // Normalized value? or user value?
-				// Distortable.ttf usually accepts 0.5 to 2.0 or similar.
+				{Axis: wdthTag, Value: 2.0},
 			},
 		},
 	}
@@ -147,14 +127,14 @@ func TestHarfbuzzShaper_Variations(t *testing.T) {
 
 	blobVar := handlerVar.MakeBlob().(*impl.TextBlob)
 	runVar := blobVar.Run(0)
-	widthVar := runVar.Positions[1].X - runVar.Positions[0].X
+	if len(runVar.Positions) < 2 {
+		t.Fatalf("Expected at least 2 glyph positions for 'aa' (variation), got %d", len(runVar.Positions))
+	}
+	widthVar := float32(runVar.Positions[1].X - runVar.Positions[0].X)
 
 	t.Logf("Default width: %f, Var width: %f", widthDef, widthVar)
 
 	if widthDef == widthVar {
-		t.Log("Warning: Variation did not affect width. Check axis tag and values for Distortable.ttf")
-		// Not failing because I don't know exact valid values for this font without inspection.
-	} else {
-		t.Log("Variation successfully affected shaping.")
+		t.Errorf("Variation (wdth=2.0) did not affect width (%.4f == %.4f). Check tag %x and font properties.", widthDef, widthVar, wdthTag)
 	}
 }
