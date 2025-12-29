@@ -32,7 +32,7 @@ func TestOneLineShaper_Shape_Basic(t *testing.T) {
 	style.FontSize = 16
 	block := NewBlock(0, len(text), style)
 
-	shaper := NewOneLineShaper(text, []Block{block}, nil, fc)
+	shaper := NewOneLineShaper(text, []Block{block}, nil, fc, impl.NewSkUnicode())
 
 	// 4. Run Shape
 	if !shaper.Shape() {

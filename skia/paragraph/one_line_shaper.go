@@ -2,6 +2,7 @@ package paragraph
 
 import (
 	"sort"
+	"unicode/utf8"
 
 	"github.com/zodimo/go-skia-support/skia/impl"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
@@ -32,6 +33,18 @@ type OneLineShaper struct {
 
 	// Outputs
 	Runs []*Run
+
+	// Dependencies
+	skUnicode interfaces.SkUnicode
+
+	// Caching
+	fallbackFonts map[fontKey]interfaces.SkTypeface
+}
+
+type fontKey struct {
+	unicode   rune
+	fontStyle models.FontStyle
+	locale    string
 }
 
 // GlyphRange alias is defined in run.go
@@ -83,15 +96,17 @@ func (rb *runBlock) isFullyResolved() bool {
 }
 
 // NewOneLineShaper creates a new OneLineShaper.
-func NewOneLineShaper(text string, blocks []Block, placeholders []Placeholder, fontCollection *FontCollection) *OneLineShaper {
+func NewOneLineShaper(text string, blocks []Block, placeholders []Placeholder, fontCollection *FontCollection, skUnicode interfaces.SkUnicode) *OneLineShaper {
 	return &OneLineShaper{
 		text:             text,
 		blocks:           blocks,
 		placeholders:     placeholders,
 		fontCollection:   fontCollection,
+		skUnicode:        skUnicode,
 		resolvedBlocks:   make([]runBlock, 0),
 		unresolvedBlocks: make([]runBlock, 0),
 		Runs:             make([]*Run, 0),
+		fallbackFonts:    make(map[fontKey]interfaces.SkTypeface),
 	}
 }
 
@@ -387,18 +402,48 @@ func (ols *OneLineShaper) commitRunBuffer(run *Run) {
 // sortOutGlyphs identifies unresolved glyphs (ID 0) and groups them.
 func (ols *OneLineShaper) sortOutGlyphs(run *Run, sortOutUnresolvedBlock func(GlyphRange)) {
 	block := emptyRange
-	// Simplified grapheme handling: treat every cluster/glyph as potentially unresolved logic
-	// TODO: Real grapheme boundary check
+	graphemeResolved := false
+	graphemeStart := emptyIndex
 
-	// Using Run's glyphs
 	glyphs := run.Glyphs()
+	clusters := run.ClusterIndexes()
+
+	runStart := run.TextRange().Start
 
 	for i, glyphID := range glyphs {
-		// Check if unresolved
-		// C++: if (glyph == 0 && !isControl) -> unresolved
-		isUnresolved := glyphID == 0
+		// Map back to global text offset
+		cluster := int(clusters[i])
+		textOffset := runStart + cluster
 
-		if isUnresolved {
+		// Check grapheme boundary
+		gi := ols.skUnicode.FindPreviousGraphemeBoundary(ols.text, textOffset)
+
+		isGraphemeStart := false
+		if (run.BidiLevel()%2 == 0 && gi > graphemeStart) || (run.BidiLevel()%2 != 0 && gi < graphemeStart) || graphemeStart == emptyIndex {
+			isGraphemeStart = true
+		}
+
+		// If gi > textOffset, it means textOffset is INSIDE a grapheme started at gi?
+		// Wait, FindPreviousGraphemeBoundary(textOffset).
+		// If textOffset IS a boundary, it returns textOffset.
+		// If textOffset is inside (combining mark), it returns start of Base.
+		// So gi <= textOffset always (for LTR).
+
+		// C++ logic compares `gi` (boundary) with `graphemeStart`.
+		// `graphemeStart` is tracked state.
+
+		if isGraphemeStart {
+			graphemeStart = gi
+			// Reset resolved status for new grapheme
+			// If glyph is unresolved, whole grapheme is unresolved.
+			// Handle control chars
+			isControl := ols.skUnicode.CodeUnitHasProperty(ols.text, textOffset, interfaces.CodeUnitFlagControl)
+			graphemeResolved = (glyphID != 0) || isControl
+		} else if glyphID == 0 {
+			graphemeResolved = false
+		}
+
+		if !graphemeResolved {
 			if block.Start == emptyIndex {
 				block.Start = i
 				block.End = emptyIndex
@@ -447,9 +492,12 @@ func (ols *OneLineShaper) addFullyResolved(run *Run) {
 func (ols *OneLineShaper) fillGaps(run *Run, startingCount int) {
 	// Fill gaps between unresolved blocks with resolved blocks
 	resolvedTextLimits := run.TextRange()
-	// TODO: Handle RTL swap
+	isLTR := (run.BidiLevel() % 2) == 0
 
 	resolvedTextStart := resolvedTextLimits.Start
+	if !isLTR {
+		resolvedTextStart = resolvedTextLimits.End
+	}
 	resolvedGlyphsStart := 0
 
 	// Iterate new unresolved blocks
@@ -457,73 +505,135 @@ func (ols *OneLineShaper) fillGaps(run *Run, startingCount int) {
 		unresolved := ols.unresolvedBlocks[i]
 
 		// Create resolved block before this unresolved one
-		// range: [resolvedTextStart, unresolved.Start)
+		var gapStart, gapEnd int
+		if isLTR {
+			gapStart = resolvedTextStart
+			gapEnd = unresolved.text.Start
+		} else {
+			gapStart = unresolved.text.End
+			gapEnd = resolvedTextStart
+		}
 
-		// Determine End based on direction. Assuming LTR for now.
-		resolvedTextEnd := unresolved.text.Start
-
-		resolvedText := NewTextRange(resolvedTextStart, resolvedTextEnd)
-		if resolvedText.Width() > 0 {
+		gapRange := NewTextRange(gapStart, gapEnd)
+		if gapRange.Width() > 0 {
 			resolvedGlyphs := NewRange(resolvedGlyphsStart, unresolved.glyphs.Start)
-			resolvedBlock := newResolvedRunBlock(run, resolvedText, resolvedGlyphs)
+			resolvedBlock := newResolvedRunBlock(run, gapRange, resolvedGlyphs)
 			ols.resolvedBlocks = append(ols.resolvedBlocks, resolvedBlock)
 		}
 
 		resolvedGlyphsStart = unresolved.glyphs.End
-		resolvedTextStart = unresolved.text.End
+		if isLTR {
+			resolvedTextStart = unresolved.text.End
+		} else {
+			resolvedTextStart = unresolved.text.Start
+		}
 	}
 
 	// Final piece
-	resolvedText := NewTextRange(resolvedTextStart, resolvedTextLimits.End)
-	if resolvedText.Width() > 0 {
+	var finalGapStart, finalGapEnd int
+	if isLTR {
+		finalGapStart = resolvedTextStart
+		finalGapEnd = resolvedTextLimits.End
+	} else {
+		finalGapStart = resolvedTextLimits.Start
+		finalGapEnd = resolvedTextStart
+	}
+
+	finalGap := NewTextRange(finalGapStart, finalGapEnd)
+	if finalGap.Width() > 0 {
 		resolvedGlyphs := NewRange(resolvedGlyphsStart, run.Size())
-		resolvedBlock := newResolvedRunBlock(run, resolvedText, resolvedGlyphs)
+		resolvedBlock := newResolvedRunBlock(run, finalGap, resolvedGlyphs)
 		ols.resolvedBlocks = append(ols.resolvedBlocks, resolvedBlock)
 	}
 }
 
 func (ols *OneLineShaper) clusteredText(run *Run, glyphRange GlyphRange) TextRange {
-	// Find text range corresponding to these glyphs
-	// Run has ClusterIndexes.
-	// Start cluster: run.ClusterIndexes[glyphRange.Start]
-	// End cluster: run.ClusterIndexes[glyphRange.End-1] (plus length of that char?)
-	// Map back to global text indices.
-
 	if glyphRange.Width() == 0 {
 		return emptyRange
 	}
 
 	clusters := run.ClusterIndexes()
-	startCluster := int(clusters[glyphRange.Start])
-	endCluster := startCluster
+	var startCluster, endCluster int
 
-	// Find max extent in this range
-	for i := glyphRange.Start; i < glyphRange.End; i++ {
-		c := int(clusters[i])
-		if c < startCluster {
-			startCluster = c
+	isLTR := (run.BidiLevel() % 2) == 0
+
+	if isLTR {
+		startCluster = int(clusters[glyphRange.Start])
+		endCluster = int(clusters[glyphRange.End-1])
+	} else {
+		// RTL
+		startCluster = int(clusters[glyphRange.End-1])
+		endCluster = int(clusters[glyphRange.Start])
+	}
+
+	// Normalize
+	if startCluster > endCluster {
+		startCluster, endCluster = endCluster, startCluster
+	}
+
+	// Find Grapheme boundaries
+	// Start should be grapheme start
+	textRange := NewTextRange(startCluster, endCluster)
+	textRange.Start = ols.skUnicode.FindPreviousGraphemeBoundary(ols.text, textRange.Start)
+
+	// End should cover the last grapheme fully.
+	// We iterate forward from endCluster to find the start of the NEXT grapheme.
+	curr := textRange.End
+	if curr < len(ols.text) {
+		_, size := utf8.DecodeRuneInString(ols.text[curr:])
+		curr += size
+		for curr < len(ols.text) {
+			if ols.skUnicode.CodeUnitHasProperty(ols.text, curr, interfaces.CodeUnitFlagGraphemeStart) {
+				break
+			}
+			_, size = utf8.DecodeRuneInString(ols.text[curr:])
+			curr += size
 		}
-		if c > endCluster {
-			endCluster = c
+	}
+	textRange.End = curr
+
+	return textRange
+}
+
+func (ols *OneLineShaper) getEmojiSequenceStart(offset int, end int) (rune, int) {
+	if offset >= end {
+		return -1, offset
+	}
+
+	r1, size1 := utf8.DecodeRuneInString(ols.text[offset:])
+	next := offset + size1
+
+	if !ols.skUnicode.IsEmoji(r1) {
+		return -1, offset
+	}
+
+	if !ols.skUnicode.IsEmojiComponent(r1) {
+		return r1, next
+	}
+
+	if next >= end {
+		return -1, offset
+	}
+
+	r2, size2 := utf8.DecodeRuneInString(ols.text[next:])
+	if ols.skUnicode.IsRegionalIndicator(r2) {
+		if ols.skUnicode.IsRegionalIndicator(r1) {
+			return r1, next
+		}
+		return -1, offset
+	}
+
+	if r2 == 0xFE0F {
+		last := next + size2
+		if last < end {
+			r3, _ := utf8.DecodeRuneInString(ols.text[last:])
+			if r3 == 0x20E3 {
+				return r1, next
+			}
 		}
 	}
 
-	// We need to cover the full character of the last cluster.
-	// Ideally we'd know char length.
-	// For now, assuming contiguous up to next cluster or run end.
-
-	// Find next cluster index in run or run end
-	nextCluster := run.TextRange().End
-	// ... logic to find byte length of last char ...
-	// Simplified:
-	// If it's the last glyph, it goes to Run.TextRange.End
-	// Else it goes to ClusterIndexes[glyphRange.End] ?
-
-	if glyphRange.End < len(clusters) {
-		nextCluster = int(clusters[glyphRange.End])
-	}
-
-	return NewTextRange(startCluster, nextCluster)
+	return -1, offset
 }
 
 // iterateThroughFontStyles splits text by style blocks.
@@ -570,64 +680,183 @@ func (ols *OneLineShaper) matchResolvedFonts(style TextStyle, visitor func(inter
 	}
 
 	if ols.fontCollection.FontFallbackEnabled() {
-		// Just try default fallback for now (simplified vs C++)
-		fallback := ols.fontCollection.DefaultFallbackTypeface()
-		if fallback != nil {
-			if visitor(fallback) == resolvedEverything {
-				return
+		// Give fallback a clue
+		// Some unresolved subblocks might be resolved with different fallback fonts
+		var hopelessBlocks []runBlock
+
+		for len(ols.unresolvedBlocks) > 0 {
+			unresolved := ols.unresolvedBlocks[0]
+			unresolvedRange := unresolved.text
+
+			// text := ols.text[unresolvedRange.Start:unresolvedRange.End] // text slice
+			// We need absolute indices for tracking
+			ch := unresolvedRange.Start
+			chEnd := unresolvedRange.End
+
+			alreadyTriedCodepoints := make(map[rune]bool)
+			alreadyTriedTypefaces := make(map[interfaces.SkTypeface]bool) // key by uniqueID typically, using ptr key here
+
+			for {
+				if ch == chEnd {
+					// Not a single codepoint could be resolved but we finished the block
+					hopelessBlocks = append(hopelessBlocks, ols.unresolvedBlocks[0])
+					ols.unresolvedBlocks = ols.unresolvedBlocks[1:]
+					break
+				}
+
+				// See if we can switch to the next DIFFERENT codepoint/emoji
+				codepoint := rune(-1)
+				emojiStart := -1
+
+				// Loop until we find a new codepoint/emoji run
+				for ch < chEnd {
+					emojiCode, next := ols.getEmojiSequenceStart(ch, chEnd)
+					if emojiCode != -1 {
+						emojiStart = int(emojiCode)
+						// We found an emoji, we will try to resolve it.
+						// We do NOT advance ch here because we want to resolve it.
+						// But C++ advances ch inside `getEmojiSequenceStart` by one char?
+						// "return the first codepoint, moving 'begin' pointer to the next once."
+						// So `ch` in C++ loop points to *second* char of emoji.
+						// My `getEmojiSequenceStart` returns `next`.
+						// But wait, if I set ch = next, I am consuming it.
+						// I want `codepoint` to be the emoji start.
+						// So `ch` used for lookup should be the start.
+						break
+					} else {
+						r, size := utf8.DecodeRuneInString(ols.text[ch:])
+						codepoint = r
+						next = ch + size
+
+						if !alreadyTriedCodepoints[codepoint] {
+							alreadyTriedCodepoints[codepoint] = true
+							break
+						}
+						// Skip this codepoint as we already tried it
+						ch = next
+					}
+				}
+
+				if ch == chEnd && emojiStart == -1 {
+					// Consumed the rest of the block without finding a new candidate
+					continue
+				}
+
+				// Resolve Typeface
+				var typeface interfaces.SkTypeface
+				if emojiStart == -1 {
+					// Regular codepoint
+					// Check cache first
+					key := fontKey{
+						unicode:   codepoint,
+						fontStyle: style.FontStyle,
+						locale:    style.Locale,
+					}
+					if cached, ok := ols.fallbackFonts[key]; ok {
+						typeface = cached
+					}
+
+					if typeface == nil {
+						typeface = ols.fontCollection.DefaultFallback(codepoint, style.FontStyle, style.Locale)
+						if typeface != nil {
+							ols.fallbackFonts[key] = typeface
+						}
+					}
+				} else {
+					// Emoji
+					// TODO: Add DefaultEmojiFallback to FontCollection interface?
+					// C++: fFontCollection->defaultEmojiFallback(emojiStart, ...)
+					// For now fall back to DefaultFallback which likely handles it if font mgr supports it.
+					typeface = ols.fontCollection.DefaultFallback(rune(emojiStart), style.FontStyle, style.Locale)
+				}
+
+				if typeface == nil {
+					// No fallback, move to next char
+					// If emoji, we should skip the whole sequence?
+					// getEmojiSequenceStart only identified it.
+					// Ideally we skip. For parity, C++ just blindly loops next.
+					if emojiStart != -1 {
+						// We need to advance past the emoji start we found?
+						// In loop above, we didn't advance `ch` when we found emojiStart.
+						// So we must advance it here to avoid infinite loop.
+						_, size := utf8.DecodeRuneInString(ols.text[ch:])
+						ch += size
+					} else {
+						// ch was already advanced if we found a codepoint?
+						// Wait, in the loop `ch` is advanced ONLY if we CONTINUE (skip).
+						// If we `break`, `ch` is still at the start of `codepoint`.
+						// So if we failed to resolve, we must advance.
+						_, size := utf8.DecodeRuneInString(ols.text[ch:])
+						ch += size
+					}
+					continue
+				}
+
+				if alreadyTriedTypefaces[typeface] {
+					// Already tried this font for this block, skip
+					// We need to advance `ch`?
+					// No, we found a typeface for `codepoint`.
+					// If we skip this typeface, we effectively say "this font doesn't work".
+					// But we just found it via fallback!
+					// Maybe it resolves the character but we already tried shaping with it?
+					// If we already tried it, it means it didn't resolve *everything* in previous attempts?
+					// Or maybe it resolved something else?
+					// C++ logic: `if (!alreadyTriedTypefaces.contains(typeface->uniqueID())) ... else continue`
+					// "continue" here continues the `while(true)` loop, which will then advance `ch`.
+					// YES.
+
+					// We need to ensure we advance `ch` if we skipped.
+					// But loop above advances `ch` ONLY if `alreadyTriedCodepoints`.
+					// If we break with `codepoint`, `ch` is at start.
+					// If we continue here, we loop back.
+					// Next iteration: `codepoint` is same. `alreadyTriedCodepoints` is TRUE.
+					// So it will skip `codepoint` and advance `ch`. Correct.
+					continue
+				}
+				alreadyTriedTypefaces[typeface] = true
+
+				// Shape with this typeface
+				resolvedBlocksBefore := len(ols.resolvedBlocks)
+				resolved := visitor(typeface)
+
+				if resolved == resolvedEverything {
+					if len(hopelessBlocks) == 0 {
+						return
+					}
+					if len(ols.resolvedBlocks) > resolvedBlocksBefore {
+						resolved = resolvedSomething
+					} else {
+						resolved = resolvedNothing
+					}
+				}
+
+				if resolved == resolvedSomething {
+					// Resolved something, break inner loop to process next unresolved block (which might be the rest of this one?)
+					// Actually if resolvedSomething, `visitor` modified `ols.unresolvedBlocks`.
+					// Our local `unresolved` var might be stale if `visitor` popped it?
+					// `visitor` operates on `ols.unresolvedBlocks`.
+					// C++: `fUnresolvedBlocks.pop_front()` happens inside visitor?
+					// C++: `matchResolvedFonts` calls visitor. Visitor calls `shape`.
+					// Visitor logic in C++ (lambda inside `shape`):
+					// `shaper->shape(...)`
+					// `fUnresolvedBlocks.pop_front()`
+
+					// My Go implementation of visitor (lines 182-245 in one_line_shaper.go):
+					// It iterates `count := len(ols.unresolvedBlocks)`.
+					// It pops `ols.unresolvedBlocks`.
+					// So yes, `ols.unresolvedBlocks` is modified.
+
+					// So we should break the `while(true)` loop to refresh `unresolved`.
+					break
+				}
 			}
 		}
 
-		// Per-character fallback iteration
-		// If we still have unresolved blocks, try to find a font for each character
-		if len(ols.unresolvedBlocks) > 0 {
-			// Copy unresolved blocks to iterate safely
-			pendingBlocks := make([]runBlock, len(ols.unresolvedBlocks))
-			copy(pendingBlocks, ols.unresolvedBlocks)
-
-			// Clear main list to consume one by one
-			ols.unresolvedBlocks = nil
-
-			// Add them back if we fail
-
-			for _, block := range pendingBlocks {
-				text := ols.text[block.text.Start:block.text.End]
-				for i, r := range text {
-					// Find font for this rune
-					// Simplified: check default fallback for this char
-					fbTypeface := ols.fontCollection.DefaultFallback(r, style.FontStyle, "")
-					if fbTypeface != nil {
-						// Shape *just* this character (or cluster)
-						// This is very inefficient (shaping char by char),
-						// C++ optimization groups same-font chars.
-						// Here we just test if visitor accepts it.
-						// If visitor accepts, it shapes current 'unresolvedBlocks'.
-						// So we need to set 'unresolvedBlocks' to just this char range?
-						// No, visitor shapes ALL unresolvedBlocks.
-
-						// Strategy:
-						// 1. Identify sub-range for this char
-						charLen := len(string(r))
-						charStart := block.text.Start + i // This is byte offset from start of block text
-						// Wait, 'i' in range loop over string is byte index? Yes.
-						charRange := NewTextRange(charStart, charStart+charLen)
-
-						// 2. Set ols.unresolvedBlocks to this single block
-						ols.unresolvedBlocks = []runBlock{newRunBlock(charRange)}
-
-						// 3. Call visitor
-						if visitor(fbTypeface) == resolvedEverything {
-							// Success for this char
-						} else {
-							// Failed, add to resolvedBlocks as unresolved?
-							// Or stick back to pending?
-							// For now, if failed, we should probably record it as unresolved run (tofu)
-						}
-					}
-				}
-			}
-			// What wasn't resolved is lost in this simplified logic?
-			// C++ puts hopeless blocks back into unresolved.
+		// Restore hopeless blocks
+		// Prepend them to unresolved? C++ `emplace_front`.
+		// ols.unresolvedBlocks = append(hopelessBlocks, ols.unresolvedBlocks...)
+		if len(hopelessBlocks) > 0 {
+			ols.unresolvedBlocks = append(hopelessBlocks, ols.unresolvedBlocks...)
 		}
 	}
 }
