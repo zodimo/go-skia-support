@@ -9,7 +9,7 @@ import (
 //
 // Ported from: skia-source/modules/skparagraph/include/FontCollection.h
 type FontCollection struct {
-	fontManagers       []interfaces.SkFontMgr
+	typefaces          map[string][]interfaces.SkTypeface
 	defaultFontManager interfaces.SkFontMgr
 	assetFontManager   interfaces.SkFontMgr
 	dynamicFontManager interfaces.SkFontMgr
@@ -21,7 +21,7 @@ type FontCollection struct {
 // NewFontCollection creates a new FontCollection.
 func NewFontCollection() *FontCollection {
 	return &FontCollection{
-		fontManagers:       make([]interfaces.SkFontMgr, 0),
+		typefaces:          make(map[string][]interfaces.SkTypeface),
 		enableFontFallback: true,
 		paragraphCache:     NewParagraphCache(),
 	}
@@ -29,7 +29,25 @@ func NewFontCollection() *FontCollection {
 
 // GetFontManagersCount returns the number of registered font managers.
 func (fc *FontCollection) GetFontManagersCount() int {
-	return len(fc.fontManagers)
+	return len(fc.getFontManagerOrder())
+}
+
+func (fc *FontCollection) getFontManagerOrder() []interfaces.SkFontMgr {
+	order := make([]interfaces.SkFontMgr, 0, 4)
+	if fc.dynamicFontManager != nil {
+		order = append(order, fc.dynamicFontManager)
+	}
+	if fc.assetFontManager != nil {
+		order = append(order, fc.assetFontManager)
+	}
+	if fc.testFontManager != nil {
+		order = append(order, fc.testFontManager)
+	}
+	// Note: The C++ implementation checks enableFontFallback here for the default manager
+	if fc.defaultFontManager != nil && fc.enableFontFallback {
+		order = append(order, fc.defaultFontManager)
+	}
+	return order
 }
 
 // SetAssetFontManager sets the asset font manager.
@@ -59,44 +77,104 @@ func (fc *FontCollection) GetFallbackManager() interfaces.SkFontMgr {
 
 // FindTypefaces finds typefaces for the given family names and style.
 func (fc *FontCollection) FindTypefaces(familyNames []string, fontStyle models.FontStyle) []interfaces.SkTypeface {
+	key := fc.makeFamilyKey(familyNames, fontStyle)
+	if cached, ok := fc.typefaces[key]; ok {
+		return cached
+	}
+
 	var typefaces []interfaces.SkTypeface
+	managers := fc.getFontManagerOrder()
 
-	// Collect all managers in order of priority (or just all of them).
-	// Skia usually checks check them in specific order.
-	managers := []interfaces.SkFontMgr{}
-	if fc.assetFontManager != nil {
-		managers = append(managers, fc.assetFontManager)
-	}
-	if fc.dynamicFontManager != nil {
-		managers = append(managers, fc.dynamicFontManager)
-	}
-	if fc.testFontManager != nil {
-		managers = append(managers, fc.testFontManager)
-	}
-	managers = append(managers, fc.fontManagers...)
-	if fc.defaultFontManager != nil {
-		managers = append(managers, fc.defaultFontManager)
-	}
-
-	for _, manager := range managers {
-		for _, family := range familyNames {
-			tf := manager.MatchFamilyStyle(family, fontStyle)
-			if tf != nil {
-				typefaces = append(typefaces, tf)
-			}
+	for _, family := range familyNames {
+		match := fc.matchTypeface(family, fontStyle, managers)
+		if match != nil {
+			typefaces = append(typefaces, match)
 		}
 	}
 
+	if len(typefaces) == 0 {
+		match := fc.matchTypeface("", fontStyle, managers)
+		if match == nil {
+			for _, manager := range managers {
+				match = manager.LegacyMakeTypeface("", fontStyle)
+				if match != nil {
+					break
+				}
+			}
+		}
+		if match != nil {
+			typefaces = append(typefaces, match)
+		}
+	}
+
+	fc.typefaces[key] = typefaces
 	return typefaces
+}
+
+func (fc *FontCollection) matchTypeface(familyName string, fontStyle models.FontStyle, managers []interfaces.SkFontMgr) interfaces.SkTypeface {
+	for _, manager := range managers {
+		match := manager.MatchFamilyStyle(familyName, fontStyle)
+		if match != nil {
+			return match
+		}
+	}
+	return nil
+}
+
+func (fc *FontCollection) makeFamilyKey(familyNames []string, fontStyle models.FontStyle) string {
+	// Simple key generation strategy
+	// Joined family names + style attributes
+	key := ""
+	for _, f := range familyNames {
+		key += f + "|"
+	}
+	key += string(rune(fontStyle.Weight)) + "|"
+	key += string(rune(fontStyle.Width)) + "|"
+	key += string(rune(fontStyle.Slant))
+	return key
 }
 
 // DefaultFallback finds a fallback typeface for the given unicode character.
 func (fc *FontCollection) DefaultFallback(unicode rune, fontStyle models.FontStyle, locale string) interfaces.SkTypeface {
-	if !fc.enableFontFallback || fc.defaultFontManager == nil {
+	for _, manager := range fc.getFontManagerOrder() {
+		// Go strings are UTF-8, but locally we just pass the slice.
+		// simplified bcp47 handling
+		locales := []string{}
+		if locale != "" {
+			locales = append(locales, locale)
+		}
+		match := manager.MatchFamilyStyleCharacter("", fontStyle, locales, unicode)
+		if match != nil {
+			return match
+		}
+	}
+	return nil
+}
+
+// DefaultFallbackTypeface returns the default fallback typeface.
+func (fc *FontCollection) DefaultFallbackTypeface() interfaces.SkTypeface {
+	if fc.defaultFontManager == nil {
 		return nil
 	}
-	// Note: bcp47 handling is simplified here.
-	return fc.defaultFontManager.MatchFamilyStyleCharacter("", fontStyle, []string{locale}, unicode)
+	return fc.defaultFontManager.MatchFamilyStyle("", models.FontStyle{})
+}
+
+// DefaultEmojiFallback finds an emoji font.
+func (fc *FontCollection) DefaultEmojiFallback(emojiStart rune, fontStyle models.FontStyle, locale string) interfaces.SkTypeface {
+	// Simplified implementation: Look for common emoji fonts or use available managers
+	emojiFonts := []string{"Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji"}
+	managers := fc.getFontManagerOrder()
+
+	for _, rangeName := range emojiFonts {
+		for _, manager := range managers {
+			match := manager.MatchFamilyStyle(rangeName, fontStyle)
+			if match != nil {
+				return match
+			}
+		}
+	}
+	// Fallback to character matching if specific family not found
+	return fc.DefaultFallback(emojiStart, fontStyle, locale)
 }
 
 // DisableFontFallback disables font fallback.
@@ -112,6 +190,12 @@ func (fc *FontCollection) EnableFontFallback() {
 // FontFallbackEnabled returns true if font fallback is enabled.
 func (fc *FontCollection) FontFallbackEnabled() bool {
 	return fc.enableFontFallback
+}
+
+// ClearCaches clears the caches.
+func (fc *FontCollection) ClearCaches() {
+	fc.typefaces = make(map[string][]interfaces.SkTypeface)
+	fc.paragraphCache = NewParagraphCache() // Reset paragraph cache
 }
 
 // GetParagraphCache returns the paragraph cache.

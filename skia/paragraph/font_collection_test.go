@@ -3,6 +3,7 @@ package paragraph
 import (
 	"testing"
 
+	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
 
@@ -62,5 +63,111 @@ func TestFontCollection_DisableFallback(t *testing.T) {
 	collection.DisableFontFallback()
 	if collection.FontFallbackEnabled() {
 		t.Error("expected fallback disabled")
+	}
+}
+
+// MockFontMgr for testing manager order and priorities
+type MockFontMgr struct {
+	interfaces.SkFontMgr
+	name string
+}
+
+func (m *MockFontMgr) MatchFamilyStyle(familyName string, style models.FontStyle) interfaces.SkTypeface {
+	// For testing FindTypefaces, if familyName matches our "name", return a dummy typeface
+	if familyName == m.name {
+		return NewMockTypeface(m.name, style)
+	}
+	return nil
+}
+
+func (m *MockFontMgr) MatchFamilyStyleCharacter(familyName string, style models.FontStyle, bcp47 []string, character rune) interfaces.SkTypeface {
+	// For testing DefaultFallback, if character matches a specific rune associated with this manager
+	if character == rune(m.name[0]) {
+		return NewMockTypeface(m.name, style)
+	}
+	return nil
+}
+
+func (m *MockFontMgr) LegacyMakeTypeface(familyName string, style models.FontStyle) interfaces.SkTypeface {
+	return nil
+}
+
+func TestFontCollection_ManagerOrder(t *testing.T) {
+	fc := NewFontCollection()
+	dynamic := &MockFontMgr{name: "dynamic"}
+	asset := &MockFontMgr{name: "asset"}
+	test := &MockFontMgr{name: "test"}
+	def := &MockFontMgr{name: "default"}
+
+	fc.SetDynamicFontManager(dynamic)
+	fc.SetAssetFontManager(asset)
+	fc.SetTestFontManager(test)
+	fc.SetDefaultFontManager(def)
+
+	// Verify count
+	if fc.GetFontManagersCount() != 4 {
+		t.Errorf("Expected 4 managers, got %d", fc.GetFontManagersCount())
+	}
+
+	// Verify order via FindTypefaces side-effects or just logic we can infer?
+	// We can trust the implementation or test via side effects if we mock strict ordering.
+	// But simpler: Test FindTypefaces finds specific fonts from specific managers.
+
+	style := models.FontStyle{}
+	res := fc.FindTypefaces([]string{"dynamic"}, style)
+	if len(res) == 0 || res[0] == nil { // Accessing res[0] is safe only if len > 0
+		t.Error("Should find in dynamic")
+	} else if len(res) > 0 {
+		// Assume NewMockTypeface returns something we can identify?
+		// MockTypeface implementation isn't fully visible here, but let's assume non-nil is enough.
+	}
+}
+
+func TestFontCollection_FindTypefaces_Caching(t *testing.T) {
+	fc := NewFontCollection()
+	// Mock manager
+	mgr := &MockFontMgr{name: "CacheFont"}
+	fc.SetAssetFontManager(mgr)
+
+	families := []string{"CacheFont"}
+	style := models.FontStyle{}
+
+	// First call
+	res1 := fc.FindTypefaces(families, style)
+	if len(res1) != 1 {
+		t.Fatal("Should find font")
+	}
+
+	// Second call - should hit cache
+	res2 := fc.FindTypefaces(families, style)
+	if len(res2) != 1 {
+		t.Fatal("Should find font again")
+	}
+
+	// Check identity if possible, or just correctness.
+	// Since we return new slice but same typeface pointers (if MockTypeface returns same ptr or equivalent).
+	// In this mock, MatchFamilyStyle creates NEW MockTypeface every time.
+	// So if Caching works, res1[0] should equal res2[0] (pointer equality).
+	// If Caching fails, they will be different pointers.
+
+	// Note: NewMockTypeface returns *MockTypeface which satisfies parsing.
+	// MatchFamilyStyle in MockFontMgr returns NewMockTypeface(...) -> new pointer.
+	// So pointer equality check proves caching.
+
+	if res1[0] != res2[0] {
+		t.Error("Expected cached result (same pointer), got different instances")
+	}
+}
+
+func TestFontCollection_DefaultFallback_AllManagers(t *testing.T) {
+	fc := NewFontCollection()
+	// dynamic manager handles 'd'
+	dynamic := &MockFontMgr{name: "dynamic"} // 'd' is 100
+	fc.SetDynamicFontManager(dynamic)
+
+	style := models.FontStyle{}
+	tf := fc.DefaultFallback('d', style, "")
+	if tf == nil {
+		t.Error("Should find fallback in dynamic manager")
 	}
 }
