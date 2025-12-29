@@ -12,7 +12,7 @@
 - **Technology Stack:** Pure Go, backend-agnostic calculation library following BYOG (Bring Your Own Graphics Backend) philosophy
 - **Integration Points:** 
   - Canvas interface at `skia/interfaces/canvas.go` (currently missing text methods)
-  - Reference C++ Skia source at `/home/jaco/SecondBrain/1-Projects/GoProjects/Development/skia-source`
+  - Reference C++ Skia source at ` ../../clones/skia-source`
   - C++ API reference: `include/core/SkCanvas.h` (`drawTextBlob` method at line ~2008)
   - C++ types: `include/core/SkTextBlob.h`, `include/core/SkFont.h`, `include/core/SkTypeface.h`
 
