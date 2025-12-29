@@ -9,12 +9,16 @@ import (
 
 type SkMatrix = interfaces.SkMatrix
 type SkPath = interfaces.SkPath
+type SkFont = interfaces.SkFont
+type SkTypeface = interfaces.SkTypeface
+type SkTextBlob = interfaces.SkTextBlob
 type Shader = interfaces.Shader
 type ColorFilter = interfaces.ColorFilter
 type ImageFilter = interfaces.ImageFilter
 type MaskFilter = interfaces.MaskFilter
 type PathEffect = interfaces.PathEffect
 type Blender = interfaces.Blender
+type FontStyle = models.FontStyle
 
 // Matrix indices matching C++ SkMatrix constants
 const (

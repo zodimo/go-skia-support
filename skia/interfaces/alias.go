@@ -11,3 +11,4 @@ type MatrixType = enums.MatrixType
 type Point = models.Point
 type Rect = models.Rect
 type RRect = models.RRect
+type FontStyle = models.FontStyle

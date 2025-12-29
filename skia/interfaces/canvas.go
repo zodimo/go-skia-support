@@ -115,6 +115,39 @@ type SkCanvas interface {
 	// Ported from: skia-source/include/core/SkCanvas.h:drawPoints() - line 1330
 	DrawPoints(mode enums.PointMode, points []Point, paint SkPaint)
 
+	// Text Drawing Methods
+	// Ported from: skia-source/include/core/SkCanvas.h lines 1807-2030
+
+	// DrawTextBlob draws a pre-constructed text blob at (x, y).
+	// blob contains glyphs, their positions, and paint attributes specific to text:
+	// typeface, text size, text scale x, text skew x, etc.
+	// Elements of paint: anti-alias, blend mode, color including alpha,
+	// color filter, dither, mask filter, path effect, shader, and style apply to blob.
+	// Text is positioned at (x + blob.bounds.left, y + blob.bounds.top).
+	//
+	// Ported from: skia-source/include/core/SkCanvas.h:drawTextBlob() - line 2008
+	DrawTextBlob(blob SkTextBlob, x Scalar, y Scalar, paint SkPaint)
+
+	// DrawSimpleText draws text with origin at (x, y), using clip, matrix, font, and paint.
+	// When encoding is TextEncodingUTF8, TextEncodingUTF16, or TextEncodingUTF32,
+	// this function uses the default character-to-glyph mapping from the typeface in font.
+	// It does not perform typeface fallback for characters not found in the typeface.
+	// It does not perform kerning or other complex shaping; glyphs are positioned based
+	// on their default advances.
+	// Text meaning depends on encoding.
+	// All elements of paint apply to text. By default, draws filled black glyphs.
+	//
+	// Ported from: skia-source/include/core/SkCanvas.h:drawSimpleText() - line 1834
+	DrawSimpleText(text []byte, encoding enums.TextEncoding, x Scalar, y Scalar, font SkFont, paint SkPaint)
+
+	// DrawString draws a null-terminated UTF-8 string at (x, y), using clip, matrix, font, and paint.
+	// This is a convenience method that wraps DrawSimpleText with UTF-8 encoding.
+	// It does not perform typeface fallback or kerning; glyphs are positioned based on their default advances.
+	// All elements of paint apply to text. By default, draws filled black glyphs.
+	//
+	// Ported from: skia-source/include/core/SkCanvas.h:drawString() - line 1861
+	DrawString(str string, x Scalar, y Scalar, font SkFont, paint SkPaint)
+
 	// Clipping Methods
 	// Ported from: skia-source/include/core/SkCanvas.h lines 1019-1151
 
