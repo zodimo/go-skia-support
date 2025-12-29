@@ -38,6 +38,8 @@ type Range struct {
 type RunInfo struct {
 	Font       interfaces.SkFont
 	BidiLevel  uint8
+	Script     uint32
+	Language   string
 	Advance    models.Point
 	GlyphCount uint64
 	Utf8Range  Range

@@ -29,6 +29,17 @@ func (m *mockShaper) Shape(text string, font interfaces.SkFont, leftToRight bool
 	m.shapeCalled = true
 }
 
+func (m *mockShaper) ShapeWithIterators(text string,
+	fontIter shaper.FontRunIterator,
+	bidiIter shaper.BiDiRunIterator,
+	scriptIter shaper.ScriptRunIterator,
+	langIter shaper.LanguageRunIterator,
+	features []shaper.Feature,
+	width float32,
+	runHandler shaper.RunHandler) {
+	m.shapeCalled = true
+}
+
 func TestShaperInterface_Shape(t *testing.T) {
 	var s shaper.Shaper = &mockShaper{}
 	s.Shape("test", nil, true, 0, nil, nil)

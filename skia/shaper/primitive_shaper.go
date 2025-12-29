@@ -136,15 +136,20 @@ func (ps *PrimitiveShaper) ShapeWithIterators(text string,
 		currentOffset = end
 	}
 
+	if currentOffset == 0 && totalLength == 0 {
+		runHandler.BeginLine()
+		runHandler.CommitRunInfo()
+		runHandler.CommitLine()
+	}
+
 	runHandler.CommitLine()
 }
 
-// shapeRun is a placeholder for the actual shaping logic (Story 2+).
+// shapeRun implements the primitive shaping logic including word-wrapping.
 func (ps *PrimitiveShaper) shapeRun(text string, start, end int,
 	font interfaces.SkFont, bidiLevel uint8, script uint32, lang string,
 	width float32, runHandler RunHandler) {
 
-	// 1. Convert text range to runes and map to glyphs
 	runText := text[start:end]
 	runes := []rune(runText)
 	count := len(runes)
@@ -158,46 +163,131 @@ func (ps *PrimitiveShaper) shapeRun(text string, start, end int,
 		glyphs[i] = font.UnicharToGlyph(r)
 	}
 
-	// 2. Get glyph widths
 	widths := font.GetWidths(glyphs)
 
-	// 3. Compute positions (advance)
-	positions := make([]models.Point, count)
-	var currentX float32 = 0
-	for i, w := range widths {
-		positions[i] = models.Point{X: models.Scalar(currentX), Y: 0}
-		currentX += float32(w)
+	glyphOffset := 0
+	utf8Offset := start
+
+	for utf8Offset < end {
+		// Line break logic
+		bytesConsumed, bytesCollapsed := linebreak(runText[utf8Offset-start:], font, width, widths[glyphOffset:])
+		bytesVisible := bytesConsumed - bytesCollapsed
+
+		visibleRunes := []rune(runText[utf8Offset-start : utf8Offset-start+bytesVisible])
+		numGlyphs := len(visibleRunes)
+
+		// Calculate run advance
+		var runAdvanceX float32 = 0
+		for i := 0; i < numGlyphs; i++ {
+			runAdvanceX += float32(widths[glyphOffset+i])
+		}
+
+		info := RunInfo{
+			Font:       font,
+			BidiLevel:  bidiLevel,
+			Script:     script,
+			Language:   lang,
+			Advance:    models.Point{X: models.Scalar(runAdvanceX), Y: 0},
+			GlyphCount: uint64(numGlyphs),
+			Utf8Range:  Range{Begin: utf8Offset, End: utf8Offset + bytesVisible},
+		}
+
+		runHandler.BeginLine()
+		if info.GlyphCount > 0 {
+			runHandler.RunInfo(info)
+		}
+		runHandler.CommitRunInfo()
+
+		if info.GlyphCount > 0 {
+			buffer := runHandler.RunBuffer(info)
+			copy(buffer.Glyphs, glyphs[glyphOffset:glyphOffset+numGlyphs])
+
+			var currentX float32 = 0
+			byteOff := utf8Offset
+			for i := 0; i < numGlyphs; i++ {
+				buffer.Positions[i] = models.Point{X: models.Scalar(currentX), Y: 0}
+				buffer.Clusters[i] = uint32(byteOff)
+				currentX += float32(widths[glyphOffset+i])
+				byteOff += utf8.RuneLen(visibleRunes[i])
+			}
+			runHandler.CommitRunBuffer(info)
+		}
+		runHandler.CommitLine()
+
+		utf8Offset += bytesConsumed
+		// Advance glyphOffset by number of runes in consumed bytes
+		consumedRunes := []rune(runText[utf8Offset-start-bytesConsumed : utf8Offset-start])
+		glyphOffset += len(consumedRunes)
+	}
+}
+
+func isBreakingWhitespace(r rune) bool {
+	switch r {
+	case 0x0020, 0x1680, 0x180E, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x200B, 0x202F, 0x205F, 0x3000:
+		return true
+	default:
+		return false
+	}
+}
+
+func linebreak(text string, font interfaces.SkFont, width float32, advances []interfaces.Scalar) (int, int) {
+	var accumulatedWidth float32 = 0
+	glyphIndex := 0
+	start := 0
+	wordStart := 0
+	prevWS := true
+	textBytes := []byte(text)
+	stop := len(textBytes)
+	curr := 0
+
+	for curr < stop {
+		prevText := curr
+		r, size := utf8.DecodeRune(textBytes[curr:])
+		curr += size
+
+		accumulatedWidth += float32(advances[glyphIndex])
+		glyphIndex++
+		currWS := isBreakingWhitespace(r)
+
+		if !currWS && prevWS {
+			wordStart = prevText
+		}
+		prevWS = currWS
+
+		if width < accumulatedWidth {
+			consumeWhitespace := false
+			if currWS {
+				if prevText == start {
+					prevText = curr
+				}
+				consumeWhitespace = true
+			} else if wordStart != start {
+				curr = wordStart
+			} else if prevText > start {
+				curr = prevText
+			} else {
+				prevText = curr
+				consumeWhitespace = true
+			}
+
+			var trailing int
+			if consumeWhitespace {
+				next := curr
+				for next < stop {
+					rn, sz := utf8.DecodeRune(textBytes[next:])
+					if !isBreakingWhitespace(rn) {
+						break
+					}
+					next += sz
+				}
+				trailing = next - prevText
+				curr = next
+			}
+			return curr, trailing
+		}
 	}
 
-	// 4. Create RunInfo
-	info := RunInfo{
-		Font:       font,
-		BidiLevel:  bidiLevel,
-		Advance:    models.Point{X: models.Scalar(currentX), Y: 0},
-		GlyphCount: uint64(count),
-		Utf8Range:  Range{Begin: start, End: end},
-	}
-
-	// 5. Interact with Handler
-	runHandler.RunInfo(info)
-	buffer := runHandler.RunBuffer(info)
-
-	// Fill buffer
-	copy(buffer.Glyphs, glyphs)
-	copy(buffer.Positions, positions)
-	// For primitive shaper, Clusters map 1:1 to indices if we assume 1 rune = 1 char = 1 glyph map
-	// But actually clusters map back to original text byte offset.
-	// Since we are iterating runes, we need to track byte offsets.
-
-	// Re-calculate clusters based on byte offsets
-	byteOffset := start
-	for i, r := range runes {
-		buffer.Clusters[i] = uint32(byteOffset)
-		byteOffset += utf8.RuneLen(r)
-	}
-	// buffer.Offsets is usually optionally used for justifying, we can leave zero for now.
-
-	runHandler.CommitRunBuffer(info)
+	return len(text), 0
 }
 
 // Helper utility for min (not strictly needed since we expanded it above for clarity)

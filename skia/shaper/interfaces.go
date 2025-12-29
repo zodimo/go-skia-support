@@ -20,6 +20,16 @@ type Shaper interface {
 	// leftToRight indicates the base direction of the text.
 	// width is the width of the shape.
 	Shape(text string, font interfaces.SkFont, leftToRight bool, width float32, runHandler RunHandler, features []Feature)
+
+	// ShapeWithIterators shapes the text using custom iterators.
+	ShapeWithIterators(text string,
+		fontIter FontRunIterator,
+		bidiIter BiDiRunIterator,
+		scriptIter ScriptRunIterator,
+		langIter LanguageRunIterator,
+		features []Feature,
+		width float32,
+		runHandler RunHandler)
 }
 
 // RunIterator is the base interface for iterators over runs of text.

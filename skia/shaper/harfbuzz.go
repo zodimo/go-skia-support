@@ -28,6 +28,15 @@ func NewHarfbuzzShaper() *HarfbuzzShaper {
 	return &HarfbuzzShaper{}
 }
 
+// shapedRunData holds the result of shaping a single run.
+// This allows us to collect all runs before emitting callbacks in the correct order.
+type shapedRunData struct {
+	info      RunInfo
+	glyphs    []uint16
+	positions []models.Point
+	clusters  []uint32
+}
+
 // Shape shapes the text using the font and runHandler.
 func (s *HarfbuzzShaper) Shape(text string, font interfaces.SkFont, leftToRight bool, width float32, runHandler RunHandler, features []Feature) {
 	// Create trivial iterators
@@ -46,6 +55,12 @@ func (s *HarfbuzzShaper) Shape(text string, font interfaces.SkFont, leftToRight 
 }
 
 // ShapeWithIterators shapes the text using custom iterators.
+// This implementation follows the C++ callback ordering:
+// 1. BeginLine()
+// 2. RunInfo() for ALL runs (in visual order)
+// 3. CommitRunInfo() once
+// 4. RunBuffer() + CommitRunBuffer() for ALL runs (in visual order)
+// 5. CommitLine()
 func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 	fontIter FontRunIterator,
 	bidiIter BiDiRunIterator,
@@ -58,7 +73,8 @@ func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 	utf8Bytes := []byte(text)
 	totalLength := len(utf8Bytes)
 
-	runHandler.BeginLine()
+	// Phase 1: Collect all shaped runs (in logical order)
+	var shapedRuns []shapedRunData
 
 	currentOffset := 0
 	for currentOffset < totalLength {
@@ -101,7 +117,10 @@ func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 		currentScript := scriptIter.CurrentScript()
 		currentLang := langIter.CurrentLanguage()
 
-		s.shapeRun(text, currentOffset, end, currentFont, currentBidiLevel, currentScript, currentLang, features, width, runHandler)
+		// Shape the run and collect the data
+		if runData := s.shapeRunCollect(text, currentOffset, end, currentFont, currentBidiLevel, currentScript, currentLang, features); runData != nil {
+			shapedRuns = append(shapedRuns, *runData)
+		}
 
 		if fontIter.EndOfCurrentRun() == end {
 			fontIter.Consume()
@@ -119,20 +138,131 @@ func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 		currentOffset = end
 	}
 
+	// Phase 2: Compute visual ordering for BiDi text
+	numRuns := len(shapedRuns)
+	visualOrder := make([]int, numRuns)
+
+	if numRuns > 0 {
+		// Collect bidi levels
+		levels := make([]uint8, numRuns)
+		for i, run := range shapedRuns {
+			levels[i] = run.info.BidiLevel
+		}
+		// Compute visual-to-logical mapping
+		visualOrder = reorderVisual(levels)
+	}
+
+	// Phase 3: Emit callbacks in the correct order (visual order, matching C++ behavior)
+	runHandler.BeginLine()
+
+	// 3a. Call RunInfo for ALL runs in visual order
+	for i := 0; i < numRuns; i++ {
+		logicalIndex := visualOrder[i]
+		runHandler.RunInfo(shapedRuns[logicalIndex].info)
+	}
+
+	// 3b. CommitRunInfo once (after all RunInfo calls)
+	runHandler.CommitRunInfo()
+
+	// 3c. Call RunBuffer + CommitRunBuffer for ALL runs in visual order
+	for i := 0; i < numRuns; i++ {
+		logicalIndex := visualOrder[i]
+		run := shapedRuns[logicalIndex]
+
+		buffer := runHandler.RunBuffer(run.info)
+
+		copy(buffer.Glyphs, run.glyphs)
+		copy(buffer.Positions, run.positions)
+		copy(buffer.Clusters, run.clusters)
+
+		runHandler.CommitRunBuffer(run.info)
+	}
+
+	// 3d. CommitLine
 	runHandler.CommitLine()
 }
 
-func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
+// reorderVisual computes the visual order of runs based on their BiDi levels.
+// It returns a slice where visualOrder[visualIndex] = logicalIndex.
+// This implements the Unicode Bidirectional Algorithm L2 rule for reordering.
+//
+// The algorithm:
+// 1. Find the highest level among all runs
+// 2. For each level from highest down to the lowest odd level:
+//   - Reverse any contiguous sequence of runs at that level or higher
+func reorderVisual(levels []uint8) []int {
+	n := len(levels)
+	if n == 0 {
+		return nil
+	}
+
+	// Initialize visual order as identity (logical order)
+	order := make([]int, n)
+	for i := range order {
+		order[i] = i
+	}
+
+	// Find highest and lowest odd levels
+	var highestLevel uint8 = 0
+	var lowestOddLevel uint8 = 255
+
+	for _, level := range levels {
+		if level > highestLevel {
+			highestLevel = level
+		}
+		if level%2 == 1 && level < lowestOddLevel {
+			lowestOddLevel = level
+		}
+	}
+
+	// If no odd levels, all text is LTR, no reordering needed
+	if lowestOddLevel == 255 {
+		return order
+	}
+
+	// Apply L2: reverse runs at each level from highest to lowestOddLevel
+	for level := highestLevel; level >= lowestOddLevel; level-- {
+		// Find and reverse contiguous sequences at this level or higher
+		start := -1
+		for i := 0; i <= n; i++ {
+			if i < n && levels[order[i]] >= level {
+				if start == -1 {
+					start = i
+				}
+			} else {
+				if start != -1 {
+					// Reverse the sequence from start to i-1
+					reverseSlice(order, start, i-1)
+					start = -1
+				}
+			}
+		}
+	}
+
+	return order
+}
+
+// reverseSlice reverses elements in slice from index start to end (inclusive).
+func reverseSlice(slice []int, start, end int) {
+	for start < end {
+		slice[start], slice[end] = slice[end], slice[start]
+		start++
+		end--
+	}
+}
+
+// shapeRunCollect shapes a run and returns the data without calling RunHandler callbacks.
+// Returns nil if the run produces no glyphs.
+func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 	skFont interfaces.SkFont, bidiLevel uint8, script uint32, lang string,
-	features []Feature,
-	width float32, runHandler RunHandler) {
+	features []Feature) *shapedRunData {
 
 	// 1. Resolve Face
 	face := resolveFace(skFont)
 	if face == nil {
 		// Cannot shape without a face that supports go-text/typesetting
 		log.Println("HarfbuzzShaper: typeface does not implement UseGoTextFace or returns nil")
-		return
+		return nil
 	}
 
 	// 2. Prepare Input
@@ -175,10 +305,10 @@ func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
 	// 3. Shape
 	output := s.hb.Shape(input)
 
-	// 4. Map to RunHandler
+	// 4. Map to output data
 	count := len(output.Glyphs)
 	if count == 0 {
-		return
+		return nil
 	}
 
 	glyphs := make([]uint16, count)
@@ -239,22 +369,20 @@ func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
 		}
 	}
 
-	info := RunInfo{
-		Font:       skFont,
-		BidiLevel:  bidiLevel,
-		Advance:    models.Point{X: models.Scalar(currentX), Y: models.Scalar(currentY)},
-		GlyphCount: uint64(count),
-		Utf8Range:  Range{Begin: start, End: end},
+	return &shapedRunData{
+		info: RunInfo{
+			Font:       skFont,
+			BidiLevel:  bidiLevel,
+			Script:     script,
+			Language:   lang,
+			Advance:    models.Point{X: models.Scalar(currentX), Y: models.Scalar(currentY)},
+			GlyphCount: uint64(count),
+			Utf8Range:  Range{Begin: start, End: end},
+		},
+		glyphs:    glyphs,
+		positions: positions,
+		clusters:  clusters,
 	}
-
-	runHandler.RunInfo(info)
-	buffer := runHandler.RunBuffer(info)
-
-	copy(buffer.Glyphs, glyphs)
-	copy(buffer.Positions, positions)
-	copy(buffer.Clusters, clusters)
-
-	runHandler.CommitRunBuffer(info)
 }
 
 func resolveFace(skFont interfaces.SkFont) *font.Face {
