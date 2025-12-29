@@ -4,6 +4,8 @@ import (
 	"sync/atomic"
 
 	"github.com/go-text/typesetting/font"
+	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // Global unique ID counter for typefaces
@@ -110,6 +112,36 @@ func (t *Typeface) UnicharToGlyph(unichar rune) uint16 {
 	// Stub: assume all characters are supported
 	// Real implementation would call onCharsToGlyphs with platform-specific cmap parsing
 	return 1
+}
+
+// MakeClone returns a new typeface with the specified arguments.
+func (t *Typeface) MakeClone(args models.FontArguments) interfaces.SkTypeface {
+	// Clone basic fields
+	newTf := &Typeface{
+		style:      t.style,
+		familyName: t.familyName,
+		uniqueID:   nextTypefaceID(),
+		fixedPitch: t.fixedPitch,
+	}
+
+	if t.goTextFace != nil {
+		// Create new face from the underlying Font to support thread safety and isolation
+		// Accessing embedded Font field
+		newFace := font.NewFace(t.goTextFace.Font)
+
+		// Apply variations
+		var vars []font.Variation
+		for _, coord := range args.VariationDesignPosition.Coordinates {
+			vars = append(vars, font.Variation{
+				Tag:   font.Tag(coord.Axis),
+				Value: coord.Value,
+			})
+		}
+		newFace.SetVariations(vars)
+		newTf.goTextFace = newFace
+	}
+
+	return newTf
 }
 
 // Compile-time interface check

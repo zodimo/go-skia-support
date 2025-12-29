@@ -1,6 +1,7 @@
 package paragraph
 
 import (
+	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
 
@@ -45,4 +46,13 @@ func (m *MockTypeface) FamilyName() string {
 
 func (m *MockTypeface) UnicharToGlyph(unichar rune) uint16 {
 	return 1 // Mock: assume all characters supported
+}
+
+func (m *MockTypeface) MakeClone(args models.FontArguments) interfaces.SkTypeface {
+	// Mock implementation
+	return &MockTypeface{
+		style:      m.style,
+		familyName: m.familyName,
+		uniqueID:   m.uniqueID,
+	}
 }

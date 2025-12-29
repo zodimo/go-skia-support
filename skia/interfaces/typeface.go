@@ -37,4 +37,8 @@ type SkTypeface interface {
 	// Returns 0 if the character is not supported by this typeface.
 	// Ported from: SkTypeface::unicharToGlyph
 	UnicharToGlyph(unichar rune) uint16
+
+	// MakeClone returns a new typeface with the specified arguments.
+	// Ported from: SkTypeface::makeClone
+	MakeClone(args models.FontArguments) SkTypeface
 }

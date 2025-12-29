@@ -29,7 +29,7 @@ func NewHarfbuzzShaper() *HarfbuzzShaper {
 }
 
 // Shape shapes the text using the font and runHandler.
-func (s *HarfbuzzShaper) Shape(text string, font interfaces.SkFont, leftToRight bool, width float32, runHandler RunHandler) {
+func (s *HarfbuzzShaper) Shape(text string, font interfaces.SkFont, leftToRight bool, width float32, runHandler RunHandler, features []Feature) {
 	// Create trivial iterators
 	totalLength := len(text) // Byte length (approximation for now, iterators handle mapping)
 
@@ -42,7 +42,7 @@ func (s *HarfbuzzShaper) Shape(text string, font interfaces.SkFont, leftToRight 
 	scriptIter := NewTrivialScriptRunIterator(0, totalLength) // Common/Unknown
 	langIter := NewTrivialLanguageRunIterator("en", totalLength)
 
-	s.ShapeWithIterators(text, fontIter, bidiIter, scriptIter, langIter, width, runHandler)
+	s.ShapeWithIterators(text, fontIter, bidiIter, scriptIter, langIter, features, width, runHandler)
 }
 
 // ShapeWithIterators shapes the text using custom iterators.
@@ -51,6 +51,7 @@ func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 	bidiIter BiDiRunIterator,
 	scriptIter ScriptRunIterator,
 	langIter LanguageRunIterator,
+	features []Feature,
 	width float32,
 	runHandler RunHandler) {
 
@@ -90,7 +91,7 @@ func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 		currentScript := scriptIter.CurrentScript()
 		currentLang := langIter.CurrentLanguage()
 
-		s.shapeRun(text, currentOffset, end, currentFont, currentBidiLevel, currentScript, currentLang, width, runHandler)
+		s.shapeRun(text, currentOffset, end, currentFont, currentBidiLevel, currentScript, currentLang, features, width, runHandler)
 
 		if fontIter.EndOfCurrentRun() == end {
 			fontIter.Consume()
@@ -113,6 +114,7 @@ func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 
 func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
 	skFont interfaces.SkFont, bidiLevel uint8, script uint32, lang string,
+	features []Feature,
 	width float32, runHandler RunHandler) {
 
 	// 1. Resolve Face
@@ -137,16 +139,37 @@ func (s *HarfbuzzShaper) shapeRun(text string, start, end int,
 		dir = di.DirectionRTL
 	}
 
+	// Filter features used in this run
+	var runFeatures []shaping.FontFeature
+	for _, f := range features {
+		// Intersection of [start, end) and [f.Start, f.End)
+		// max(start, f.Start) < min(end, f.End)
+		fStart := f.Start
+		fEnd := f.End
+		if fStart < start {
+			fStart = start
+		}
+		if fEnd > end {
+			fEnd = end
+		}
+		if fStart < fEnd {
+			runFeatures = append(runFeatures, shaping.FontFeature{
+				Tag:   font.Tag(f.Tag),
+				Value: f.Value,
+			})
+		}
+	}
+
 	input := shaping.Input{
-		Text:      runText,
-		RunStart:  0,
-		RunEnd:    len(runText),
-		Direction: dir,
-		Face:      face,
-		Size:      floatToFixed(float32(textSize)),
-		Script:    language.Script(script),
+		Text:         runText,
+		RunStart:     0,
+		RunEnd:       len(runText),
+		Direction:    dir,
+		Face:         face,
+		Size:         floatToFixed(float32(textSize)),
+		Script:       language.Script(script),
+		FontFeatures: runFeatures,
 		// Language: language.NewLanguage(lang), (Future optimization: map language string)
-		// Features: []shaping.Feature{}, // TODO: Expose feature setting in Shape/ShapeWithIterators
 	}
 
 	// 3. Shape

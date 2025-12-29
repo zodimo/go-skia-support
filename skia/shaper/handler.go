@@ -27,15 +27,6 @@ type RunHandler interface {
 	CommitLine()
 }
 
-// Feature represents an OpenType feature.
-// It maps to SkShaper::Feature in C++.
-type Feature struct {
-	Tag   uint32
-	Value uint32
-	Start uint64 // Start index in the text
-	End   uint64 // End index in the text
-}
-
 // Range represents a range of indices in the text.
 type Range struct {
 	Begin int

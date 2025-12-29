@@ -28,7 +28,7 @@ func TestHarfbuzzShaper_Shape(t *testing.T) {
 
 	// 3. Shape
 	shaper := NewHarfbuzzShaper()
-	shaper.Shape(text, skFont, true, 1000, handler)
+	shaper.Shape(text, skFont, true, 1000, handler, nil)
 
 	// 4. Verify
 	blob := handler.MakeBlob()

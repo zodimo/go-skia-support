@@ -110,9 +110,9 @@ func TestPrimitiveShaper_Shape_LoopLogic(t *testing.T) {
 	// Expect 1 run covering 0-10
 	handler := &MockRunHandler{}
 	font := impl.NewFont()
-	shaper.Shape(text, font, true, 100, handler)
+	shaper.Shape(text, font, true, 100, handler, nil)
 
-	if !handler.BeginLineCalled {
+	if !handler.BeginLineCalled { // Changed from handler.beginLineCalled to handler.BeginLineCalled
 		t.Error("BeginLine not called")
 	}
 	if !handler.CommitLineCalled {
@@ -137,9 +137,9 @@ func TestPrimitiveShaper_ShapeWithIterators_Breaks(t *testing.T) {
 
 	handler := &MockRunHandler{}
 
-	shaper.ShapeWithIterators(text, fontIter, bidiIter, scriptIter, langIter, 100, handler)
+	shaper.ShapeWithIterators(text, fontIter, bidiIter, scriptIter, langIter, nil, 100, handler)
 
-	if !handler.BeginLineCalled {
+	if !handler.BeginLineCalled { // Changed from handler.beginLineCalled to handler.BeginLineCalled
 		t.Error("BeginLine not called")
 	}
 	if !handler.CommitLineCalled {
@@ -202,7 +202,7 @@ func TestPrimitiveShaper_Shape_SimpleRun(t *testing.T) {
 	font := &MockFont{}
 	handler := &MockRunHandler{}
 
-	shaper.Shape(text, font, true, 100, handler)
+	shaper.Shape(text, font, true, 100, handler, nil)
 
 	if len(handler.RunInfos) != 1 {
 		t.Fatalf("Expected 1 run, got %d", len(handler.RunInfos))

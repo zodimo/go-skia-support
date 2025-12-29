@@ -19,7 +19,7 @@ func NewPrimitiveShaper() *PrimitiveShaper {
 
 // Shape shapes the text using the font and runHandler.
 // It implements the Shaper interface.
-func (ps *PrimitiveShaper) Shape(text string, font interfaces.SkFont, leftToRight bool, width float32, runHandler RunHandler) {
+func (ps *PrimitiveShaper) Shape(text string, font interfaces.SkFont, leftToRight bool, width float32, runHandler RunHandler, features []Feature) {
 	// 1. Create trivial iterators if necessary.
 	// In C++ SkShaper::Shape (the simple one) creates a TrivialFontRunIterator,
 	// TrivialBiDiRunIterator, TrivialScriptRunIterator, TrivialLanguageRunIterator.
@@ -44,7 +44,7 @@ func (ps *PrimitiveShaper) Shape(text string, font interfaces.SkFont, leftToRigh
 	scriptIter := NewTrivialScriptRunIterator(0, totalLength)    // 0 as default script?
 	langIter := NewTrivialLanguageRunIterator("en", totalLength) // "en" as default lang?
 
-	ps.ShapeWithIterators(text, fontIter, bidiIter, scriptIter, langIter, width, runHandler)
+	ps.ShapeWithIterators(text, fontIter, bidiIter, scriptIter, langIter, features, width, runHandler)
 }
 
 // ShapeWithIterators allows shaping with custom iterators.
@@ -54,6 +54,7 @@ func (ps *PrimitiveShaper) ShapeWithIterators(text string,
 	bidiIter BiDiRunIterator,
 	scriptIter ScriptRunIterator,
 	langIter LanguageRunIterator,
+	features []Feature,
 	width float32,
 	runHandler RunHandler) {
 

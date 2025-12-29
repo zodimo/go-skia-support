@@ -4,13 +4,22 @@ import (
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 )
 
+// Feature represents a font feature with a range.
+// It maps to SkShaper::Feature in C++.
+type Feature struct {
+	Tag   uint32
+	Value uint32
+	Start int
+	End   int
+}
+
 // Shaper is the interface for text shaping.
 // It maps to SkShaper in C++.
 type Shaper interface {
 	// Shape shapes the text using the font and runHandler.
 	// leftToRight indicates the base direction of the text.
 	// width is the width of the shape.
-	Shape(text string, font interfaces.SkFont, leftToRight bool, width float32, runHandler RunHandler)
+	Shape(text string, font interfaces.SkFont, leftToRight bool, width float32, runHandler RunHandler, features []Feature)
 }
 
 // RunIterator is the base interface for iterators over runs of text.

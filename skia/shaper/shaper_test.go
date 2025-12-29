@@ -21,11 +21,21 @@ func (m *mockRunHandler) CommitRunBuffer(info shaper.RunInfo) {}
 func (m *mockRunHandler) CommitLine()                         {}
 
 // mockShaper implements shaper.Shaper for testing.
-type mockShaper struct{}
+type mockShaper struct {
+	shapeCalled bool
+}
 
-func (m *mockShaper) Shape(text string, font interfaces.SkFont, leftToRight bool, width float32, runHandler shaper.RunHandler) {
-	runHandler.BeginLine()
-	runHandler.CommitLine()
+func (m *mockShaper) Shape(text string, font interfaces.SkFont, leftToRight bool, width float32, runHandler shaper.RunHandler, features []shaper.Feature) {
+	m.shapeCalled = true
+}
+
+func TestShaperInterface_Shape(t *testing.T) {
+	var s shaper.Shaper = &mockShaper{}
+	s.Shape("test", nil, true, 0, nil, nil)
+
+	if !s.(*mockShaper).shapeCalled {
+		t.Errorf("Shape was not called")
+	}
 }
 
 func TestInterfaces(t *testing.T) {
@@ -50,5 +60,5 @@ func TestInterfaces(t *testing.T) {
 	var s shaper.Shaper = &mockShaper{}
 
 	// simple call
-	s.Shape("test", nil, true, 100.0, rh)
+	s.Shape("test", nil, true, 100.0, rh, nil)
 }

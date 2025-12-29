@@ -33,14 +33,15 @@ func (m *IntegrationMockFont) GetWidths(glyphs []uint16) []models.Scalar {
 func TestPrimitiveShaper_Integration(t *testing.T) {
 	shaper := NewPrimitiveShaper()
 	text := "Hello World"
-	font := NewIntegrationMockFont()
+	mockFont := NewIntegrationMockFont()
 	startPoint := models.Point{X: 10, Y: 20}
 
 	// Create handler with explicit type to access MakeBlob
 	handler := NewTextBlobBuilderRunHandler(text, startPoint)
 
-	// Shape
-	shaper.Shape(text, font, true, 200, handler)
+	// 4. Shape
+	shaper = NewPrimitiveShaper()
+	shaper.Shape(text, mockFont, true, 1000, handler, nil)
 
 	// Get Blob
 	blob := handler.MakeBlob()
