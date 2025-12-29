@@ -208,3 +208,137 @@ func TestFontEquals(t *testing.T) {
 		t.Error("Two nils should be equal")
 	}
 }
+
+// ============================================================================
+// Tests ported from C++ skia-source/tests/FontTest.cpp
+// ============================================================================
+
+// TestFontFlatten tests all font attribute combinations for consistency.
+// Ported from: FontTest.cpp Font_flatten (lines 74-116)
+// This test verifies that fonts with various attribute combinations maintain
+// their properties correctly (equivalent to serialize/deserialize round-trip in C++).
+func TestFontFlatten(t *testing.T) {
+	// Test values from C++ FontTest.cpp lines 75-90
+	sizes := []Scalar{0, 0.001, 1, 10, 10.001, 100000.01}
+	scalesX := []Scalar{-5, 0, 1, 5}
+	skewsX := []Scalar{-5, 0, 5}
+	edgings := []enums.FontEdging{
+		enums.FontEdgingAlias,
+		enums.FontEdgingSubpixelAntiAlias,
+	}
+	hintings := []enums.FontHinting{
+		enums.FontHintingNone,
+		enums.FontHintingFull,
+	}
+
+	// Flag combinations
+	type fontFlags struct {
+		forceAutoHinting bool
+		embeddedBitmaps  bool
+		subpixel         bool
+		linearMetrics    bool
+		embolden         bool
+		baselineSnap     bool
+	}
+
+	flagCombinations := []fontFlags{
+		{true, false, false, false, false, true},   // ForceAutoHinting only
+		{false, true, false, false, false, true},   // EmbeddedBitmaps only
+		{false, false, true, false, false, true},   // Subpixel only
+		{false, false, false, true, false, true},   // LinearMetrics only
+		{false, false, false, false, true, true},   // Embolden only
+		{false, false, false, false, false, false}, // BaselineSnap disabled
+		{true, true, true, true, true, true},       // All enabled
+	}
+
+	testCount := 0
+	failCount := 0
+
+	for _, size := range sizes {
+		for _, scaleX := range scalesX {
+			for _, skewX := range skewsX {
+				for _, edging := range edgings {
+					for _, hinting := range hintings {
+						for _, flags := range flagCombinations {
+							testCount++
+
+							// Create font with all attributes
+							font := NewFont()
+							font.SetSize(size)
+							font.SetScaleX(scaleX)
+							font.SetSkewX(skewX)
+							font.SetEdging(edging)
+							font.SetHinting(hinting)
+							font.SetForceAutoHinting(flags.forceAutoHinting)
+							font.SetEmbeddedBitmaps(flags.embeddedBitmaps)
+							font.SetSubpixel(flags.subpixel)
+							font.SetLinearMetrics(flags.linearMetrics)
+							font.SetEmbolden(flags.embolden)
+							font.SetBaselineSnap(flags.baselineSnap)
+
+							// Verify all attributes were set correctly
+							// Size: negative values are ignored in SetSize
+							if size >= 0 && font.Size() != size {
+								t.Errorf("Size: got %v, want %v", font.Size(), size)
+								failCount++
+							}
+							if font.ScaleX() != scaleX {
+								t.Errorf("ScaleX: got %v, want %v", font.ScaleX(), scaleX)
+								failCount++
+							}
+							if font.SkewX() != skewX {
+								t.Errorf("SkewX: got %v, want %v", font.SkewX(), skewX)
+								failCount++
+							}
+							if font.Edging() != edging {
+								t.Errorf("Edging: got %v, want %v", font.Edging(), edging)
+								failCount++
+							}
+							if font.Hinting() != hinting {
+								t.Errorf("Hinting: got %v, want %v", font.Hinting(), hinting)
+								failCount++
+							}
+							if font.IsForceAutoHinting() != flags.forceAutoHinting {
+								t.Errorf("ForceAutoHinting: got %v, want %v",
+									font.IsForceAutoHinting(), flags.forceAutoHinting)
+								failCount++
+							}
+							if font.IsEmbeddedBitmaps() != flags.embeddedBitmaps {
+								t.Errorf("EmbeddedBitmaps: got %v, want %v",
+									font.IsEmbeddedBitmaps(), flags.embeddedBitmaps)
+								failCount++
+							}
+							if font.IsSubpixel() != flags.subpixel {
+								t.Errorf("Subpixel: got %v, want %v",
+									font.IsSubpixel(), flags.subpixel)
+								failCount++
+							}
+							if font.IsLinearMetrics() != flags.linearMetrics {
+								t.Errorf("LinearMetrics: got %v, want %v",
+									font.IsLinearMetrics(), flags.linearMetrics)
+								failCount++
+							}
+							if font.IsEmbolden() != flags.embolden {
+								t.Errorf("Embolden: got %v, want %v",
+									font.IsEmbolden(), flags.embolden)
+								failCount++
+							}
+							if font.IsBaselineSnap() != flags.baselineSnap {
+								t.Errorf("BaselineSnap: got %v, want %v",
+									font.IsBaselineSnap(), flags.baselineSnap)
+								failCount++
+							}
+
+							// Early exit if too many failures
+							if failCount > 10 {
+								t.Fatalf("Too many failures, stopping. Tested %d combinations.", testCount)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	t.Logf("Tested %d font attribute combinations", testCount)
+}
