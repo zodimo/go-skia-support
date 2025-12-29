@@ -2,10 +2,12 @@ package shaper
 
 import (
 	"log"
+	"math"
 
 	"github.com/go-text/typesetting/di"
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/language"
+	"github.com/go-text/typesetting/segmenter"
 	"github.com/go-text/typesetting/shaping"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
@@ -29,7 +31,6 @@ func NewHarfbuzzShaper() *HarfbuzzShaper {
 }
 
 // shapedRunData holds the result of shaping a single run.
-// This allows us to collect all runs before emitting callbacks in the correct order.
 type shapedRunData struct {
 	info      RunInfo
 	glyphs    []uint16
@@ -37,30 +38,36 @@ type shapedRunData struct {
 	clusters  []uint32
 }
 
+// textProps holds safe-to-break point information from shaped model.
+type textProps struct {
+	glyphLen int     // Number of glyphs up to this point
+	advance  float32 // Advance width up to this point
+}
+
+// lineBuilder accumulates runs for current line.
+type lineBuilder struct {
+	runs    []shapedRunData
+	advance float32
+}
+
 // Shape shapes the text using the font and runHandler.
 func (s *HarfbuzzShaper) Shape(text string, font interfaces.SkFont, leftToRight bool, width float32, runHandler RunHandler, features []Feature) {
-	// Create trivial iterators
-	totalLength := len(text) // Byte length (approximation for now, iterators handle mapping)
+	totalLength := len(text)
 
 	fontIter := NewTrivialFontRunIterator(font, totalLength)
-	bidiDir := uint8(0) // LTR
+	bidiDir := uint8(0)
 	if !leftToRight {
-		bidiDir = 1 // RTL
+		bidiDir = 1
 	}
 	bidiIter := NewTrivialBiDiRunIterator(bidiDir, totalLength)
-	scriptIter := NewTrivialScriptRunIterator(0, totalLength) // Common/Unknown
+	scriptIter := NewTrivialScriptRunIterator(0, totalLength)
 	langIter := NewTrivialLanguageRunIterator("en", totalLength)
 
 	s.ShapeWithIterators(text, fontIter, bidiIter, scriptIter, langIter, features, width, runHandler)
 }
 
 // ShapeWithIterators shapes the text using custom iterators.
-// This implementation follows the C++ callback ordering:
-// 1. BeginLine()
-// 2. RunInfo() for ALL runs (in visual order)
-// 3. CommitRunInfo() once
-// 4. RunBuffer() + CommitRunBuffer() for ALL runs (in visual order)
-// 5. CommitLine()
+// When width > 0, implements shaper-driven line breaking following C++ ShaperDrivenWrapper.
 func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 	fontIter FontRunIterator,
 	bidiIter BiDiRunIterator,
@@ -73,13 +80,318 @@ func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 	utf8Bytes := []byte(text)
 	totalLength := len(utf8Bytes)
 
-	// Phase 1: Collect all shaped runs (in logical order)
+	// No width constraint - shape and emit as single line
+	if width <= 0 {
+		s.shapeWithoutWrapping(text, fontIter, bidiIter, scriptIter, langIter, features, runHandler)
+		return
+	}
+
+	// Get break opportunities for line breaking
+	breakPoints := getLineBreakPoints(text)
+
+	// Line accumulator
+	var line lineBuilder
+
+	currentOffset := 0
+	for currentOffset < totalLength {
+		// Find end of current item (smallest iterator boundary)
+		itemEnd := totalLength
+		if fontEnd := fontIter.EndOfCurrentRun(); fontEnd < itemEnd {
+			itemEnd = fontEnd
+		}
+		if bidiEnd := bidiIter.EndOfCurrentRun(); bidiEnd < itemEnd {
+			itemEnd = bidiEnd
+		}
+		if scriptEnd := scriptIter.EndOfCurrentRun(); scriptEnd < itemEnd {
+			itemEnd = scriptEnd
+		}
+		if langEnd := langIter.EndOfCurrentRun(); langEnd < itemEnd {
+			itemEnd = langEnd
+		}
+
+		// Split at feature boundaries
+		for _, f := range features {
+			if f.Start > currentOffset && f.Start < itemEnd {
+				itemEnd = f.Start
+			}
+			if f.End > currentOffset && f.End < itemEnd {
+				itemEnd = f.End
+			}
+		}
+
+		if itemEnd <= currentOffset {
+			break
+		}
+
+		currentFont := fontIter.CurrentFont()
+		currentBidiLevel := bidiIter.CurrentLevel()
+		currentScript := scriptIter.CurrentScript()
+		currentLang := langIter.CurrentLanguage()
+
+		// Shape the entire item as model
+		model := s.shapeRunCollect(text, currentOffset, itemEnd, currentFont, currentBidiLevel, currentScript, currentLang, features)
+		if model == nil {
+			// Consume iterators and continue
+			s.consumeIterators(fontIter, bidiIter, scriptIter, langIter, itemEnd)
+			currentOffset = itemEnd
+			continue
+		}
+
+		// Build textProps map for safe-to-break points
+		propsMap := buildTextProps(model, currentOffset)
+
+		// Process item with line breaking
+		itemOffset := currentOffset
+		for itemOffset < itemEnd {
+			widthLeft := width - line.advance
+
+			// Find best break point
+			best, bestEnd := s.findBestBreak(text, itemOffset, itemEnd, breakPoints, propsMap,
+				model, currentOffset, widthLeft,
+				currentFont, currentBidiLevel, currentScript, currentLang, features)
+
+			if best == nil {
+				// No valid break found, force break at item end
+				best = s.shapeRunCollect(text, itemOffset, itemEnd, currentFont, currentBidiLevel, currentScript, currentLang, features)
+				bestEnd = itemEnd
+			}
+
+			// Check if best fits on current line
+			if line.advance+float32(best.info.Advance.X) > width && len(line.runs) > 0 {
+				// Emit current line and start new one
+				s.emitLine(line.runs, runHandler)
+				line = lineBuilder{}
+			}
+
+			// Add best to current line
+			line.runs = append(line.runs, *best)
+			line.advance += float32(best.info.Advance.X)
+
+			// If we broke the item (didn't consume all), emit line
+			if bestEnd < itemEnd {
+				s.emitLine(line.runs, runHandler)
+				line = lineBuilder{}
+			}
+
+			itemOffset = bestEnd
+		}
+
+		// Consume iterators
+		s.consumeIterators(fontIter, bidiIter, scriptIter, langIter, itemEnd)
+		currentOffset = itemEnd
+	}
+
+	// Emit final line
+	if len(line.runs) > 0 {
+		s.emitLine(line.runs, runHandler)
+	} else if currentOffset == 0 {
+		// Empty text case
+		runHandler.BeginLine()
+		runHandler.CommitRunInfo()
+		runHandler.CommitLine()
+	}
+}
+
+// findBestBreak finds the best break point using C++ scoring algorithm.
+func (s *HarfbuzzShaper) findBestBreak(text string, itemOffset, itemEnd int,
+	breakPoints []int, propsMap map[int]textProps,
+	model *shapedRunData, modelStart int, widthLeft float32,
+	currentFont interfaces.SkFont, bidiLevel uint8, script uint32, lang string,
+	features []Feature) (*shapedRunData, int) {
+
+	var best *shapedRunData
+	bestEnd := itemOffset
+	bestScore := float32(math.Inf(-1))
+
+	// Get props at current offset for extraction
+	startProps, hasStart := propsMap[itemOffset]
+	if !hasStart {
+		startProps = textProps{glyphLen: 0, advance: 0}
+	}
+
+	for _, bp := range breakPoints {
+		if bp <= itemOffset || bp > itemEnd {
+			continue
+		}
+
+		var candidate *shapedRunData
+		var candidateAdvance float32
+
+		// Try to extract from model using cached props
+		if endProps, ok := propsMap[bp]; ok && hasStart {
+			candidate = extractFromModel(model, startProps, endProps, itemOffset, bp)
+			candidateAdvance = endProps.advance - startProps.advance
+		} else {
+			// Re-shape this segment
+			candidate = s.shapeRunCollect(text, itemOffset, bp, currentFont, bidiLevel, script, lang, features)
+			if candidate != nil {
+				candidateAdvance = float32(candidate.info.Advance.X)
+			}
+		}
+
+		if candidate == nil {
+			continue
+		}
+
+		// Score: fits -> text length, doesn't fit -> negative overflow
+		var score float32
+		if candidateAdvance < widthLeft {
+			score = float32(bp - itemOffset) // Maximize text length that fits
+		} else {
+			score = widthLeft - candidateAdvance // Negative means overflow
+		}
+
+		if score > bestScore {
+			best = candidate
+			bestEnd = bp
+			bestScore = score
+		}
+	}
+
+	// Also consider breaking at itemEnd
+	if endProps, ok := propsMap[itemEnd]; ok && hasStart {
+		candidate := extractFromModel(model, startProps, endProps, itemOffset, itemEnd)
+		if candidate != nil {
+			candidateAdvance := endProps.advance - startProps.advance
+			var score float32
+			if candidateAdvance < widthLeft {
+				score = float32(itemEnd - itemOffset)
+			} else {
+				score = widthLeft - candidateAdvance
+			}
+			if score > bestScore {
+				best = candidate
+				bestEnd = itemEnd
+			}
+		}
+	}
+
+	return best, bestEnd
+}
+
+// buildTextProps builds a map of safe-to-break points from shaped model.
+func buildTextProps(model *shapedRunData, modelStart int) map[int]textProps {
+	props := make(map[int]textProps)
+	var advance float32
+	var prevCluster uint32 = 0
+
+	for i, cluster := range model.clusters {
+		// Safe to break when cluster changes
+		if i == 0 || cluster != prevCluster {
+			props[int(cluster)] = textProps{
+				glyphLen: i,
+				advance:  advance,
+			}
+			prevCluster = cluster
+		}
+		if i < len(model.positions) {
+			// Accumulate advance from position differences or use info
+			if i+1 < len(model.positions) {
+				advance = float32(model.positions[i+1].X)
+			} else {
+				advance = float32(model.info.Advance.X)
+			}
+		}
+	}
+
+	// Always safe to break at end
+	props[model.info.Utf8Range.End] = textProps{
+		glyphLen: len(model.glyphs),
+		advance:  float32(model.info.Advance.X),
+	}
+
+	return props
+}
+
+// extractFromModel extracts a subset of glyphs from model between two textProps.
+func extractFromModel(model *shapedRunData, start, end textProps, byteStart, byteEnd int) *shapedRunData {
+	if end.glyphLen <= start.glyphLen {
+		return nil
+	}
+
+	glyphCount := end.glyphLen - start.glyphLen
+	glyphs := make([]uint16, glyphCount)
+	positions := make([]models.Point, glyphCount)
+	clusters := make([]uint32, glyphCount)
+
+	copy(glyphs, model.glyphs[start.glyphLen:end.glyphLen])
+	copy(positions, model.positions[start.glyphLen:end.glyphLen])
+	copy(clusters, model.clusters[start.glyphLen:end.glyphLen])
+
+	// Adjust positions to be relative to start
+	startX := float32(0)
+	if start.glyphLen > 0 && start.glyphLen < len(model.positions) {
+		startX = float32(model.positions[start.glyphLen].X)
+	}
+	for i := range positions {
+		positions[i].X = models.Scalar(float32(positions[i].X) - startX)
+	}
+
+	return &shapedRunData{
+		info: RunInfo{
+			Font:       model.info.Font,
+			BidiLevel:  model.info.BidiLevel,
+			Script:     model.info.Script,
+			Language:   model.info.Language,
+			Advance:    models.Point{X: models.Scalar(end.advance - start.advance), Y: 0},
+			GlyphCount: uint64(glyphCount),
+			Utf8Range:  Range{Begin: byteStart, End: byteEnd},
+		},
+		glyphs:    glyphs,
+		positions: positions,
+		clusters:  clusters,
+	}
+}
+
+// getLineBreakPoints returns byte offsets where lines can be broken.
+func getLineBreakPoints(text string) []int {
+	if len(text) == 0 {
+		return nil
+	}
+
+	textRunes := []rune(text)
+	var breaks []int
+	var seg segmenter.Segmenter
+	seg.Init(textRunes)
+	iter := seg.LineIterator()
+
+	// Build rune-to-byte offset mapping
+	runeToByte := make([]int, len(textRunes)+1)
+	byteOff := 0
+	for i, r := range textRunes {
+		runeToByte[i] = byteOff
+		byteOff += len(string(r))
+	}
+	runeToByte[len(textRunes)] = byteOff
+
+	// Collect break opportunities
+	for iter.Next() {
+		line := iter.Line()
+		lineEnd := line.Offset + len(line.Text)
+		if lineEnd <= len(textRunes) {
+			breaks = append(breaks, runeToByte[lineEnd])
+		}
+	}
+
+	return breaks
+}
+
+// shapeWithoutWrapping shapes text without line breaking (width <= 0).
+func (s *HarfbuzzShaper) shapeWithoutWrapping(text string,
+	fontIter FontRunIterator,
+	bidiIter BiDiRunIterator,
+	scriptIter ScriptRunIterator,
+	langIter LanguageRunIterator,
+	features []Feature,
+	runHandler RunHandler) {
+
+	utf8Bytes := []byte(text)
+	totalLength := len(utf8Bytes)
 	var shapedRuns []shapedRunData
 
 	currentOffset := 0
 	for currentOffset < totalLength {
 		end := totalLength
-
 		if fontEnd := fontIter.EndOfCurrentRun(); fontEnd < end {
 			end = fontEnd
 		}
@@ -92,8 +404,6 @@ func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 		if langEnd := langIter.EndOfCurrentRun(); langEnd < end {
 			end = langEnd
 		}
-
-		// Split at feature boundaries
 		for _, f := range features {
 			if f.Start > currentOffset && f.Start < end {
 				end = f.Start
@@ -104,11 +414,6 @@ func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 		}
 
 		if end <= currentOffset {
-			if end == totalLength {
-				break
-			}
-			// Prevent infinite loop if iterators are broken
-			log.Printf("Shaper iterator stuck at %d", currentOffset)
 			break
 		}
 
@@ -117,92 +422,84 @@ func (s *HarfbuzzShaper) ShapeWithIterators(text string,
 		currentScript := scriptIter.CurrentScript()
 		currentLang := langIter.CurrentLanguage()
 
-		// Shape the run and collect the data
 		if runData := s.shapeRunCollect(text, currentOffset, end, currentFont, currentBidiLevel, currentScript, currentLang, features); runData != nil {
 			shapedRuns = append(shapedRuns, *runData)
 		}
 
-		if fontIter.EndOfCurrentRun() == end {
-			fontIter.Consume()
-		}
-		if bidiIter.EndOfCurrentRun() == end {
-			bidiIter.Consume()
-		}
-		if scriptIter.EndOfCurrentRun() == end {
-			scriptIter.Consume()
-		}
-		if langIter.EndOfCurrentRun() == end {
-			langIter.Consume()
-		}
-
+		s.consumeIterators(fontIter, bidiIter, scriptIter, langIter, end)
 		currentOffset = end
 	}
 
-	// Phase 2: Compute visual ordering for BiDi text
-	numRuns := len(shapedRuns)
-	visualOrder := make([]int, numRuns)
+	s.emitLine(shapedRuns, runHandler)
+}
 
-	if numRuns > 0 {
-		// Collect bidi levels
-		levels := make([]uint8, numRuns)
-		for i, run := range shapedRuns {
-			levels[i] = run.info.BidiLevel
-		}
-		// Compute visual-to-logical mapping
-		visualOrder = reorderVisual(levels)
+// consumeIterators advances iterators that end at the given position.
+func (s *HarfbuzzShaper) consumeIterators(fontIter FontRunIterator, bidiIter BiDiRunIterator,
+	scriptIter ScriptRunIterator, langIter LanguageRunIterator, end int) {
+	if fontIter.EndOfCurrentRun() == end {
+		fontIter.Consume()
+	}
+	if bidiIter.EndOfCurrentRun() == end {
+		bidiIter.Consume()
+	}
+	if scriptIter.EndOfCurrentRun() == end {
+		scriptIter.Consume()
+	}
+	if langIter.EndOfCurrentRun() == end {
+		langIter.Consume()
+	}
+}
+
+// emitLine emits callbacks for a single line of runs with visual reordering.
+func (s *HarfbuzzShaper) emitLine(runs []shapedRunData, runHandler RunHandler) {
+	numRuns := len(runs)
+	if numRuns == 0 {
+		runHandler.BeginLine()
+		runHandler.CommitRunInfo()
+		runHandler.CommitLine()
+		return
 	}
 
-	// Phase 3: Emit callbacks in the correct order (visual order, matching C++ behavior)
+	// Compute visual order
+	levels := make([]uint8, numRuns)
+	for i, run := range runs {
+		levels[i] = run.info.BidiLevel
+	}
+	visualOrder := reorderVisual(levels)
+
 	runHandler.BeginLine()
 
-	// 3a. Call RunInfo for ALL runs in visual order
 	for i := 0; i < numRuns; i++ {
 		logicalIndex := visualOrder[i]
-		runHandler.RunInfo(shapedRuns[logicalIndex].info)
+		runHandler.RunInfo(runs[logicalIndex].info)
 	}
-
-	// 3b. CommitRunInfo once (after all RunInfo calls)
 	runHandler.CommitRunInfo()
 
-	// 3c. Call RunBuffer + CommitRunBuffer for ALL runs in visual order
 	for i := 0; i < numRuns; i++ {
 		logicalIndex := visualOrder[i]
-		run := shapedRuns[logicalIndex]
-
+		run := runs[logicalIndex]
 		buffer := runHandler.RunBuffer(run.info)
-
 		copy(buffer.Glyphs, run.glyphs)
 		copy(buffer.Positions, run.positions)
 		copy(buffer.Clusters, run.clusters)
-
 		runHandler.CommitRunBuffer(run.info)
 	}
 
-	// 3d. CommitLine
 	runHandler.CommitLine()
 }
 
-// reorderVisual computes the visual order of runs based on their BiDi levels.
-// It returns a slice where visualOrder[visualIndex] = logicalIndex.
-// This implements the Unicode Bidirectional Algorithm L2 rule for reordering.
-//
-// The algorithm:
-// 1. Find the highest level among all runs
-// 2. For each level from highest down to the lowest odd level:
-//   - Reverse any contiguous sequence of runs at that level or higher
+// reorderVisual computes the visual order of runs based on BiDi levels.
 func reorderVisual(levels []uint8) []int {
 	n := len(levels)
 	if n == 0 {
 		return nil
 	}
 
-	// Initialize visual order as identity (logical order)
 	order := make([]int, n)
 	for i := range order {
 		order[i] = i
 	}
 
-	// Find highest and lowest odd levels
 	var highestLevel uint8 = 0
 	var lowestOddLevel uint8 = 255
 
@@ -215,14 +512,11 @@ func reorderVisual(levels []uint8) []int {
 		}
 	}
 
-	// If no odd levels, all text is LTR, no reordering needed
 	if lowestOddLevel == 255 {
 		return order
 	}
 
-	// Apply L2: reverse runs at each level from highest to lowestOddLevel
 	for level := highestLevel; level >= lowestOddLevel; level-- {
-		// Find and reverse contiguous sequences at this level or higher
 		start := -1
 		for i := 0; i <= n; i++ {
 			if i < n && levels[order[i]] >= level {
@@ -231,7 +525,6 @@ func reorderVisual(levels []uint8) []int {
 				}
 			} else {
 				if start != -1 {
-					// Reverse the sequence from start to i-1
 					reverseSlice(order, start, i-1)
 					start = -1
 				}
@@ -242,7 +535,6 @@ func reorderVisual(levels []uint8) []int {
 	return order
 }
 
-// reverseSlice reverses elements in slice from index start to end (inclusive).
 func reverseSlice(slice []int, start, end int) {
 	for start < end {
 		slice[start], slice[end] = slice[end], slice[start]
@@ -251,28 +543,20 @@ func reverseSlice(slice []int, start, end int) {
 	}
 }
 
-// shapeRunCollect shapes a run and returns the data without calling RunHandler callbacks.
-// Returns nil if the run produces no glyphs.
-// The full text is passed to enable contextual shaping (ligatures/cursive joins across run boundaries).
+// shapeRunCollect shapes a run and returns the data.
 func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 	skFont interfaces.SkFont, bidiLevel uint8, script uint32, lang string,
 	features []Feature) *shapedRunData {
 
-	// 1. Resolve Face
 	face := resolveFace(skFont)
 	if face == nil {
-		// Cannot shape without a face that supports go-text/typesetting
 		log.Println("HarfbuzzShaper: typeface does not implement UseGoTextFace or returns nil")
 		return nil
 	}
 
-	// 2. Prepare Input with full text for contextual shaping
-	// Convert the FULL text to runes, then specify the run range.
-	// This allows HarfBuzz to see context before and after the run.
 	fullTextRunes := []rune(text)
 
 	// Map byte offsets to rune indices
-	// We need to find which rune indices correspond to byte offsets 'start' and 'end'
 	byteToRuneStart := 0
 	byteToRuneEnd := 0
 	currentByte := 0
@@ -286,18 +570,14 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 		}
 		currentByte += len(string(r))
 	}
-	// Handle case where end is at the end of text
 	if currentByte == end {
 		byteToRuneEnd = len(fullTextRunes)
 	}
-	// If start was at the very end
 	if currentByte < start {
 		byteToRuneStart = len(fullTextRunes)
 	}
 
-	// Ensure valid range
 	if byteToRuneEnd <= byteToRuneStart {
-		// Empty or invalid run
 		return nil
 	}
 
@@ -308,10 +588,8 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 		dir = di.DirectionRTL
 	}
 
-	// Filter features used in this run
 	var runFeatures []shaping.FontFeature
 	for _, f := range features {
-		// Since we segmented by feature boundaries, a feature applies if it covers the entire segment.
 		if f.Start <= start && f.End >= end {
 			runFeatures = append(runFeatures, shaping.FontFeature{
 				Tag:   font.Tag(f.Tag),
@@ -321,9 +599,9 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 	}
 
 	input := shaping.Input{
-		Text:         fullTextRunes,   // Full text for context
-		RunStart:     byteToRuneStart, // Start of this run in runes
-		RunEnd:       byteToRuneEnd,   // End of this run in runes
+		Text:         fullTextRunes,
+		RunStart:     byteToRuneStart,
+		RunEnd:       byteToRuneEnd,
 		Direction:    dir,
 		Face:         face,
 		Size:         floatToFixed(float32(textSize)),
@@ -332,25 +610,17 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 		Language:     language.NewLanguage(lang),
 	}
 
-	// 3. Shape
 	output := s.hb.Shape(input)
 
-	// 4. Map to output data
-	count := len(output.Glyphs)
-	if count == 0 {
+	if len(output.Glyphs) == 0 {
 		return nil
 	}
 
+	count := len(output.Glyphs)
 	glyphs := make([]uint16, count)
 	positions := make([]models.Point, count)
 	clusters := make([]uint32, count)
 
-	// We need to map clusters back to the original byte offset.
-	// `output.Glyphs[i].ClusterIndex` is index in `fullTextRunes` (rune index).
-	// We need to convert rune index -> byte offset in `text`.
-	// Build a complete rune-to-byte mapping for the portion we shaped.
-
-	// Create map: runeIndex -> byteOffset for the full text
 	runeToByte := make([]int, len(fullTextRunes)+1)
 	byteOff := 0
 	for i, r := range fullTextRunes {
@@ -365,20 +635,6 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 	for i, g := range output.Glyphs {
 		glyphs[i] = uint16(g.GlyphID)
 
-		// Positions: accumulated advance + offset
-		// Skia expects positions to be absolute coordinates of the glyph origin?
-		// Or relative to the run?
-		// RunBuffer documentation says: "Positions of the glyphs".
-		// Usually (x,y).
-		// Harfbuzz returns Advance (delta) and Offset (adjustment).
-
-		// Skia standard:
-		// pos[i] = (currentX, currentY) + offset
-		// currentX += advance
-
-		// Skia is Y-down, HarfBuzz is Y-up.
-		// We must flip the Y components of offset and advance.
-		// Effectively: skiaY = -hbY
 		padX := fixedToFloat(g.XOffset)
 		padY := -fixedToFloat(g.YOffset)
 
@@ -390,12 +646,11 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 		currentX += fixedToFloat(g.XAdvance)
 		currentY += -fixedToFloat(g.YAdvance)
 
-		// Clusters - ClusterIndex is now relative to full text runes
 		runeIdx := g.ClusterIndex
 		if runeIdx < len(runeToByte) {
 			clusters[i] = uint32(runeToByte[runeIdx])
 		} else {
-			clusters[i] = uint32(runeToByte[len(runeToByte)-1]) // End
+			clusters[i] = uint32(runeToByte[len(runeToByte)-1])
 		}
 	}
 

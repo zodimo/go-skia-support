@@ -408,3 +408,55 @@ func (it *multiBiDiIterator) CurrentLevel() uint8 {
 	}
 	return 0
 }
+
+// TestHarfbuzzShaper_LineBreak tests that the HarfBuzz shaper respects width constraints.
+func TestHarfbuzzShaper_LineBreak(t *testing.T) {
+	parsed, err := font.ParseTTF(bytes.NewReader(goregular.TTF))
+	if err != nil {
+		t.Fatalf("Failed to parse font: %v", err)
+	}
+
+	skTypeface := impl.NewTypefaceWithTypefaceFace("regular", models.FontStyle{Weight: 400}, parsed)
+	skFont := impl.NewFont()
+	skFont.SetTypeface(skTypeface)
+	skFont.SetSize(16)
+
+	shaper := NewHarfbuzzShaper()
+
+	t.Run("narrow width causes line breaks", func(t *testing.T) {
+		text := "Hello World This Is A Test"
+		handler := &runHandlerTracker{t: t, text: text}
+
+		// Narrow width should force multiple lines
+		shaper.Shape(text, skFont, true, 50.0, handler, nil)
+
+		if handler.beginLineCount < 2 {
+			t.Errorf("Expected at least 2 lines with narrow width, got %d", handler.beginLineCount)
+		}
+		t.Logf("Line breaking: %d lines created for width=50", handler.beginLineCount)
+	})
+
+	t.Run("wide width produces single line", func(t *testing.T) {
+		text := "Hello World"
+		handler := &runHandlerTracker{t: t, text: text}
+
+		// Wide width should fit on one line
+		shaper.Shape(text, skFont, true, 1000.0, handler, nil)
+
+		if handler.beginLineCount != 1 {
+			t.Errorf("Expected 1 line with wide width, got %d", handler.beginLineCount)
+		}
+	})
+
+	t.Run("zero width disables line breaking", func(t *testing.T) {
+		text := "Hello World This Is A Test"
+		handler := &runHandlerTracker{t: t, text: text}
+
+		// Zero width should disable line breaking
+		shaper.Shape(text, skFont, true, 0, handler, nil)
+
+		if handler.beginLineCount != 1 {
+			t.Errorf("Expected 1 line with zero width (no breaking), got %d", handler.beginLineCount)
+		}
+	})
+}
