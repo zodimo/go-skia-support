@@ -250,6 +250,13 @@ func (f *Font) MeasureText(text []byte, encoding enums.TextEncoding, bounds *Rec
 	return width
 }
 
+// UnicharToGlyph returns the glyph ID for the given Unicode character.
+// Delegates to the typeface, matching C++ SkFont::unicharToGlyph.
+// Ported from: SkFont::unicharToGlyph
+func (f *Font) UnicharToGlyph(unichar rune) uint16 {
+	return f.typeface.UnicharToGlyph(unichar)
+}
+
 // Equals compares two fonts for equality.
 func (f *Font) Equals(other *Font) bool {
 	if f == nil && other == nil {

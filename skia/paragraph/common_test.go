@@ -42,3 +42,7 @@ func (m *MockTypeface) UniqueID() uint32 {
 func (m *MockTypeface) FamilyName() string {
 	return m.familyName
 }
+
+func (m *MockTypeface) UnicharToGlyph(unichar rune) uint16 {
+	return 1 // Mock: assume all characters supported
+}

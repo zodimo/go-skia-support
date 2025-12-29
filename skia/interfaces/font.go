@@ -93,6 +93,11 @@ type SkFont interface {
 
 	// --- Glyph Operations ---
 
+	// UnicharToGlyph returns the glyph ID for the given Unicode character.
+	// Returns 0 if the character is not supported by this font.
+	// Ported from: SkFont::unicharToGlyph
+	UnicharToGlyph(unichar rune) uint16
+
 	// MeasureText returns the advance width of text.
 	// The advance is the normal distance to move before drawing additional text.
 	// If bounds is not nil, also returns the bounding box of text.

@@ -32,4 +32,9 @@ type SkTypeface interface {
 	// FamilyName returns the family name for this typeface.
 	// It will always be returned encoded as UTF8.
 	FamilyName() string
+
+	// UnicharToGlyph returns the glyph ID for the given Unicode character.
+	// Returns 0 if the character is not supported by this typeface.
+	// Ported from: SkTypeface::unicharToGlyph
+	UnicharToGlyph(unichar rune) uint16
 }
