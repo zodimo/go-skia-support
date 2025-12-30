@@ -2,7 +2,7 @@ package shaper
 
 import (
 	"bytes"
-	"os"
+	"embed"
 	"path/filepath"
 	"testing"
 
@@ -11,6 +11,9 @@ import (
 	"github.com/zodimo/go-skia-support/skia/models"
 	"golang.org/x/image/font/gofont/goregular"
 )
+
+//go:embed testdata/*.txt
+var parityTestData embed.FS
 
 type runHandlerTracker struct {
 	t               *testing.T
@@ -62,10 +65,11 @@ func TestShaper_Parity_Empty(t *testing.T) {
 }
 
 func clusterTest(t *testing.T, resourceName string) {
-	resPath := filepath.Join("/home/jaco/SecondBrain/1-Projects/GoCompose/clones/skia-source/resources/text", resourceName+".txt")
-	data, err := os.ReadFile(resPath)
+	// Read from embedded FS
+	resPath := filepath.Join("testdata", resourceName+".txt")
+	data, err := parityTestData.ReadFile(resPath)
 	if err != nil {
-		t.Skipf("Resource %s not found: %v", resourceName, err)
+		t.Skipf("Resource %s not found in embedded data: %v", resourceName, err)
 		return
 	}
 
