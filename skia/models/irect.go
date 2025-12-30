@@ -27,3 +27,9 @@ func IsEmpty(r IRect) bool {
 	// A rectangle is empty if its width or height are <= 0
 	return r.Right <= r.Left || r.Bottom <= r.Top
 }
+
+// Contains returns true if the rectangle contains the given rectangle.
+func (r IRect) Contains(other IRect) bool {
+	return r.Left <= other.Left && r.Top <= other.Top &&
+		r.Right >= other.Right && r.Bottom >= other.Bottom
+}

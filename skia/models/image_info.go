@@ -11,9 +11,9 @@ type ImageInfo struct {
 	height    int
 	colorType enums.ColorType
 	alphaType enums.AlphaType
-	// ColorSpace is omitted for now as it requires a complex object graph (SkColorSpace),
-	// typically handled via pointer/interface in C++.
-	// In the future this field can be added as an interface or struct pointer.
+	// ColorSpace is an optional pointer to a ColorSpace.
+	// In C++, this is a smart pointer (sk_sp<SkColorSpace>).
+	colorSpace *ColorSpace
 }
 
 // NewImageInfo creates a new ImageInfo with the specified properties.
@@ -61,6 +61,17 @@ func (i ImageInfo) Dimensions() ISize {
 
 func (i ImageInfo) Bounds() IRect {
 	return NewIRect(0, 0, i.width, i.height)
+}
+
+// ColorSpace returns the color space associated with this ImageInfo.
+func (i ImageInfo) ColorSpace() *ColorSpace {
+	return i.colorSpace
+}
+
+// WithColorSpace returns a new ImageInfo with the specified ColorSpace.
+func (i ImageInfo) WithColorSpace(cs *ColorSpace) ImageInfo {
+	i.colorSpace = cs
+	return i
 }
 
 // BytesPerPixel returns the number of bytes per pixel for the color type.

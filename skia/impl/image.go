@@ -78,6 +78,11 @@ func (i *Image) IsOpaque() bool {
 	return i.Info.IsOpaque()
 }
 
+// ColorSpace returns the ColorSpace of the image.
+func (i *Image) ColorSpace() *models.ColorSpace {
+	return i.Info.ColorSpace()
+}
+
 // MakeShader creates a shader with the specified tiling and sampling.
 func (i *Image) MakeShader(tmx, tmy enums.TileMode, sampling models.SamplingOptions, localMatrix *interfaces.SkMatrix) interfaces.Shader {
 	// TODO: Implement MakeShader when SkShader support is ready.

@@ -43,6 +43,9 @@ type SkImage interface {
 	// IsOpaque returns true if pixels ignore their alpha value and are treated as fully opaque.
 	IsOpaque() bool
 
+	// ColorSpace returns the ColorSpace of the image.
+	ColorSpace() *models.ColorSpace
+
 	// MakeShader creates a shader with the specified tiling and sampling.
 	// tmx, tmy: Tile modes for x and y axes.
 	// sampling: Sampling options.
@@ -56,6 +59,10 @@ type SkImage interface {
 	// Takes a Recorder context if applicable (nil for raster/generic check).
 	// In C++ this is isValid(SkRecorder*), here we use a generic interface or nil for now.
 	IsValid(context interface{}) bool
+
+	// MakeSubset returns a new image that is a subset of this image.
+	// Returns nil if the subset is invalid or outside the image bounds.
+	MakeSubset(subset models.IRect) SkImage
 
 	// PeekPixels copies address, row bytes, and info to pixmap if pixels are accessible.
 	// Returns true if successful.

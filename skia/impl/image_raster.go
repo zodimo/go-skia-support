@@ -112,3 +112,54 @@ func (r *RasterImage) ReadPixels(dstInfo models.ImageInfo, dstPixels []byte, dst
 
 	return true
 }
+
+// MakeSubset returns a new image that is a subset of this image.
+// Returns nil if the subset is invalid or outside the image bounds.
+func (r *RasterImage) MakeSubset(subset models.IRect) interfaces.SkImage {
+	bounds := r.Bounds()
+	if !bounds.Contains(subset) {
+		return nil
+	}
+	if subset.Width() <= 0 || subset.Height() <= 0 {
+		return nil
+	}
+
+	bpp := r.Info.BytesPerPixel()
+	if bpp <= 0 {
+		return nil
+	}
+
+	// Calculate offset
+	offset := int(subset.Top)*r.RowBytes + int(subset.Left)*bpp
+
+	// Safety check
+	if offset < 0 || offset >= len(r.Pixels) {
+		return nil // Should be covered by Contains check but safety first
+	}
+
+	// Create new info for the subset
+	// We use the same ColorType/AlphaType/ColorSpace, but new dimensions
+	newInfo := models.NewImageInfo(int(subset.Width()), int(subset.Height()), r.Info.ColorType(), r.Info.AlphaType())
+	if cs := r.Info.ColorSpace(); cs != nil {
+		newInfo = newInfo.WithColorSpace(cs)
+	}
+
+	// The source slice for NewRasterImage.
+	// We need to provide enough data for (Height * RowBytes).
+	// Since we are preserving the original RowBytes (stride), this works perfectly.
+	// The copy in NewRasterImage will copy (Height * RowBytes) bytes starting from offset.
+	// This includes the padding at the end of each row if Width < Stride, which is expected for a window into a larger buffer.
+	// This might be inefficient (copying padding) but it's correct.
+
+	// Check if we have enough bytes remaining
+	needed := int(subset.Height()) * r.RowBytes
+	if offset+needed > len(r.Pixels) {
+		// NewRasterImage does its own size check but better to fail early here?
+		// NewRasterImage handles safe copying but let's trust our calc.
+		// If offset+needed is OOB, slice access will panic.
+		// So we MUST check.
+		return nil
+	}
+
+	return NewRasterImage(newInfo, r.Pixels[offset:], r.RowBytes)
+}
