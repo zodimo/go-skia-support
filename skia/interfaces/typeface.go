@@ -41,4 +41,24 @@ type SkTypeface interface {
 	// MakeClone returns a new typeface with the specified arguments.
 	// Ported from: SkTypeface::makeClone
 	MakeClone(args models.FontArguments) SkTypeface
+
+	// --- Glyph Data Access Methods ---
+	// Required for Font Utilities Port (font-utilities-port.md)
+
+	// UnitsPerEm returns the units-per-em value for this typeface.
+	// Returns 0 if there is an error.
+	// Ported from: SkTypeface::getUnitsPerEm
+	UnitsPerEm() int
+
+	// GetGlyphAdvance returns the horizontal advance for a glyph in font units.
+	// This is the raw value from the font tables, not scaled by font size.
+	GetGlyphAdvance(glyphID uint16) int16
+
+	// GetGlyphBounds returns the bounding box for a glyph in font units.
+	// This is the raw value from the font tables, not scaled by font size.
+	GetGlyphBounds(glyphID uint16) Rect
+
+	// GetGlyphPath returns the outline path for a glyph.
+	// Returns an error if the glyph has no outline (e.g., space character, bitmap glyph).
+	GetGlyphPath(glyphID uint16) (SkPath, error)
 }

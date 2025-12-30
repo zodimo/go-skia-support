@@ -1,6 +1,8 @@
 package paragraph
 
 import (
+	"errors"
+
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
@@ -55,4 +57,22 @@ func (m *MockTypeface) MakeClone(args models.FontArguments) interfaces.SkTypefac
 		familyName: m.familyName,
 		uniqueID:   m.uniqueID,
 	}
+}
+
+// --- Glyph Data Access Methods (stubs for interface compliance) ---
+
+func (m *MockTypeface) UnitsPerEm() int {
+	return 1000 // Common default for mock
+}
+
+func (m *MockTypeface) GetGlyphAdvance(glyphID uint16) int16 {
+	return 600 // Reasonable mock advance
+}
+
+func (m *MockTypeface) GetGlyphBounds(glyphID uint16) interfaces.Rect {
+	return interfaces.Rect{Left: 0, Top: -800, Right: 600, Bottom: 200}
+}
+
+func (m *MockTypeface) GetGlyphPath(glyphID uint16) (interfaces.SkPath, error) {
+	return nil, errors.New("mock typeface has no glyph paths")
 }

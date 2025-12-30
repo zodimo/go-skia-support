@@ -1,9 +1,12 @@
 package impl
 
 import (
+	"errors"
 	"sync/atomic"
 
 	"github.com/go-text/typesetting/font"
+	ot "github.com/go-text/typesetting/font/opentype"
+	"github.com/zodimo/go-skia-support/skia/enums"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
@@ -146,6 +149,93 @@ func (t *Typeface) MakeClone(args models.FontArguments) interfaces.SkTypeface {
 	}
 
 	return newTf
+}
+
+// --- Glyph Data Access Methods ---
+// Required for Font Utilities Port (font-utilities-port.md)
+
+// UnitsPerEm returns the units-per-em value for this typeface.
+// Returns 0 if there is an error or no font face is available.
+// Ported from: SkTypeface::getUnitsPerEm
+func (t *Typeface) UnitsPerEm() int {
+	if t.goTextFace != nil {
+		return int(t.goTextFace.Upem())
+	}
+	return 0
+}
+
+// GetGlyphAdvance returns the horizontal advance for a glyph in font units.
+// This is the raw value from the font tables, not scaled by font size.
+func (t *Typeface) GetGlyphAdvance(glyphID uint16) int16 {
+	if t.goTextFace != nil {
+		return int16(t.goTextFace.HorizontalAdvance(font.GID(glyphID)))
+	}
+	return 0
+}
+
+// GetGlyphBounds returns the bounding box for a glyph in font units.
+// This is the raw value from the font tables, not scaled by font size.
+func (t *Typeface) GetGlyphBounds(glyphID uint16) interfaces.Rect {
+	if t.goTextFace != nil {
+		extents, ok := t.goTextFace.GlyphExtents(font.GID(glyphID))
+		if ok {
+			// go-text/typesetting GlyphExtents:
+			//   XBearing: left side bearing
+			//   YBearing: top side bearing (positive up in font coords)
+			//   Width, Height: extent dimensions
+			// Skia Rect:
+			//   Left, Top, Right, Bottom with Y increasing downward
+			// Note: go-text/typesetting Height is negative for Y-up systems.
+			// Skia uses Y-down, so we negate YBearing for Top.
+			// For Bottom, we want Top + |Height|. Since Height is negative:
+			// Bottom = -YBearing - Height
+			return interfaces.Rect{
+				Left:   Scalar(extents.XBearing),
+				Top:    Scalar(-extents.YBearing),
+				Right:  Scalar(extents.XBearing) + Scalar(extents.Width),
+				Bottom: Scalar(-extents.YBearing) - Scalar(extents.Height),
+			}
+		}
+	}
+	return interfaces.Rect{}
+}
+
+// GetGlyphPath returns the outline path for a glyph.
+// Returns an error if the glyph has no outline (e.g., space character, bitmap glyph).
+func (t *Typeface) GetGlyphPath(glyphID uint16) (interfaces.SkPath, error) {
+	if t.goTextFace == nil {
+		return nil, errors.New("typeface has no font face")
+	}
+
+	glyphData := t.goTextFace.GlyphData(font.GID(glyphID))
+
+	// GlyphData is an interface; we need to type-assert to GlyphOutline for vector glyphs
+	outline, ok := glyphData.(font.GlyphOutline)
+	if !ok || len(outline.Segments) == 0 {
+		return nil, errors.New("glyph has no outline data")
+	}
+
+	path := NewSkPath(enums.PathFillTypeDefault)
+	for _, seg := range outline.Segments {
+		switch seg.Op {
+		case ot.SegmentOpMoveTo:
+			path.MoveTo(Scalar(seg.Args[0].X), Scalar(seg.Args[0].Y))
+		case ot.SegmentOpLineTo:
+			path.LineTo(Scalar(seg.Args[0].X), Scalar(seg.Args[0].Y))
+		case ot.SegmentOpQuadTo:
+			path.QuadTo(
+				Scalar(seg.Args[0].X), Scalar(seg.Args[0].Y),
+				Scalar(seg.Args[1].X), Scalar(seg.Args[1].Y),
+			)
+		case ot.SegmentOpCubeTo:
+			path.CubicTo(
+				Scalar(seg.Args[0].X), Scalar(seg.Args[0].Y),
+				Scalar(seg.Args[1].X), Scalar(seg.Args[1].Y),
+				Scalar(seg.Args[2].X), Scalar(seg.Args[2].Y),
+			)
+		}
+	}
+	return path, nil
 }
 
 // Compile-time interface check
