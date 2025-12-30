@@ -88,6 +88,10 @@ func (m *MockTextWrapperOwner) Text() string {
 	return m.text
 }
 
+func (m *MockTextWrapperOwner) GetText() string {
+	return m.text
+}
+
 func TestNewTextWrapper(t *testing.T) {
 	tw := NewTextWrapper()
 	if tw == nil {

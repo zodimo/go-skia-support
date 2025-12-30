@@ -18,6 +18,7 @@ type TextLineOwner interface {
 	GetUnicode() interfaces.SkUnicode
 	ParagraphStyle() ParagraphStyle
 	FontCollection() *FontCollection
+	GetText() string
 }
 
 // ClipContext contains context for clipping operations.
@@ -323,23 +324,43 @@ func (tl *TextLine) measureTextInsideOneRun(
 	includeGhostSpaces bool,
 	adj TextAdjustment,
 ) ClipContext {
-	// Simplified measurement
-	// In reality, need to calculate width from glyphs
+	startGlyph, endGlyph := run.TextToGlyphRange(textRange)
+	if startGlyph == endGlyph {
+		// No glyphs in range
+		return ClipContext{
+			Run:       run,
+			Clip:      models.Rect{Left: models.Scalar(runOffsetInLine), Right: models.Scalar(runOffsetInLine)},
+			TextShift: runOffsetInLine,
+		}
+	}
 
-	// Assuming Run has CalculateWidth implemented
-	// We need start/end indices relative to Run
+	// Calculate width from positions
+	startX := run.PositionX(startGlyph)
+	endX := run.PositionX(endGlyph)
+	width := endX - startX
 
-	// Map text range to glyph range?
-	// Run doesn't support text->glyph mapping directly efficiently without binary search?
-	// C++ uses fClusterIndexes
-
-	// Stub for MVP logic:
-	width := run.CalculateWidth(0, run.Size(), true) // Wrong, need partial width
+	// Handle RTL: if startX > endX, swap?
+	// Width should be positive. PositionX accounts for visual order.
+	// If LTR: pos(start) < pos(end). width > 0.
+	// If RTL: pos(start) > pos(end)?
+	// Run.positions are visual. simpler:
+	// If run is RTL, startGlyph (lower index) corresponds to... visual left?
+	// Wait, internal storage of Run:
+	// positions[0] is left-most visual? Or logical?
+	// Usually positions are absolute X coordinates.
+	// So finding min/max X is safer.
+	if width < 0 {
+		width = -width
+		startX = endX
+	}
 
 	return ClipContext{
-		Run:       run,
-		Clip:      models.Rect{Left: models.Scalar(runOffsetInLine), Right: models.Scalar(runOffsetInLine + width)},
-		TextShift: runOffsetInLine,
+		Run:            run,
+		Pos:            startGlyph,
+		Size:           endGlyph - startGlyph,
+		Clip:           models.Rect{Left: models.Scalar(runOffsetInLine + startX), Right: models.Scalar(runOffsetInLine + startX + width)},
+		TextShift:      runOffsetInLine + startX,               // Is checking relative shift?
+		ClippingNeeded: models.Scalar(width) < run.Advance().X, // heuristic
 	}
 }
 

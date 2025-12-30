@@ -46,6 +46,10 @@ func (m *MockTextLineOwner) FontCollection() *FontCollection {
 	return nil
 }
 
+func (m *MockTextLineOwner) GetText() string {
+	return ""
+}
+
 func TestNewTextLine(t *testing.T) {
 	owner := &MockTextLineOwner{
 		Blocks: []Block{{

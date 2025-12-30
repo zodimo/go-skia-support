@@ -532,3 +532,36 @@ func (r *Run) UpdateMetrics(metrics *InternalLineMetrics) {
 	// For now, use the run's ascent/descent.
 	metrics.AddRun(r)
 }
+
+// TextToGlyphRange maps a text range to a glyph range.
+// Returns start and end indices into the glyphs/positions slice.
+func (r *Run) TextToGlyphRange(textRange TextRange) (int, int) {
+	if r.Size() == 0 {
+		return 0, 0
+	}
+
+	startGlyph := -1
+	endGlyph := -1
+
+	// Iterate to find the range of glyphs covered by the text range.
+	// Note: glyphs are stored in visual order, so cluster indexes may not be monotonic if mixed (unlikely in single run)
+	// but for LTR/RTL they should be monotonic.
+	// We scan all glyphs to be safe and simple.
+	glyphCount := r.Size()
+	for i := 0; i < glyphCount; i++ {
+		cluster := int(r.clusterIndexes[i])
+		if cluster >= textRange.Start && cluster < textRange.End {
+			if startGlyph == -1 {
+				startGlyph = i
+			}
+			endGlyph = i
+		}
+	}
+
+	if startGlyph == -1 {
+		return 0, 0
+	}
+
+	// endGlyph is inclusive in loop, make it exclusive for return
+	return startGlyph, endGlyph + 1
+}

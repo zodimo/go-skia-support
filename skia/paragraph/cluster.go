@@ -154,14 +154,28 @@ func (c *Cluster) TrimmedWidth(pos int) float32 {
 
 // IsSoftBreak returns true if this cluster is a soft line break.
 func (c *Cluster) IsSoftBreak() bool {
-	// TODO: Check based on break iterator or Run properties
-	return false
+	if c.owner == nil {
+		return false
+	}
+	text := c.owner.GetText()
+	unicode := c.owner.GetUnicode()
+	if unicode == nil {
+		return false
+	}
+	return unicode.CodeUnitHasProperty(text, c.textRange.Start, interfaces.CodeUnitFlagSoftLineBreakBefore)
 }
 
 // IsGraphemeBreak returns true if this cluster is a grapheme break.
 func (c *Cluster) IsGraphemeBreak() bool {
-	// TODO: Check based on grapheme iterator
-	return false
+	if c.owner == nil {
+		return false
+	}
+	text := c.owner.GetText()
+	unicode := c.owner.GetUnicode()
+	if unicode == nil {
+		return false
+	}
+	return unicode.CodeUnitHasProperty(text, c.textRange.Start, interfaces.CodeUnitFlagGraphemeStart)
 }
 
 // Contains returns true if the char index is within this cluster.

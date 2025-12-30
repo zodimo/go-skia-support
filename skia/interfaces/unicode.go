@@ -4,11 +4,12 @@ package interfaces
 type CodeUnitFlags int
 
 const (
-	CodeUnitFlagNone             CodeUnitFlags = 0
-	CodeUnitFlagPartOfWhitespace CodeUnitFlags = 1 << 0
-	CodeUnitFlagGraphemeStart    CodeUnitFlags = 1 << 1
-	CodeUnitFlagControl          CodeUnitFlags = 1 << 2
-	CodeUnitFlagHardLineBreak    CodeUnitFlags = 1 << 3
+	CodeUnitFlagNone                CodeUnitFlags = 0
+	CodeUnitFlagPartOfWhitespace    CodeUnitFlags = 1 << 0
+	CodeUnitFlagGraphemeStart       CodeUnitFlags = 1 << 1
+	CodeUnitFlagControl             CodeUnitFlags = 1 << 2
+	CodeUnitFlagHardLineBreak       CodeUnitFlags = 1 << 3
+	CodeUnitFlagSoftLineBreakBefore CodeUnitFlags = 1 << 4
 )
 
 // SkUnicode provides Unicode properties and segmentation logic.

@@ -157,6 +157,11 @@ func (p *ParagraphImpl) FontCollection() *FontCollection {
 	return p.fontCollection
 }
 
+// GetText returns the text.
+func (p *ParagraphImpl) GetText() string {
+	return p.text
+}
+
 // --- Metrics accessors (Paragraph interface) ---
 
 // GetMaxWidth returns the layout width.
