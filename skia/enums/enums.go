@@ -164,3 +164,12 @@ const (
 	PointModeLines   PointMode = 1 // draw each pair of points as a line segment
 	PointModePolygon PointMode = 2 // draw the array of points as an open polygon
 )
+
+// SrcRectConstraint represents the constraint on the source rectangle
+// Matches C++ SkCanvas::SrcRectConstraint enum from include/core/SkCanvas.h
+type SrcRectConstraint uint8
+
+const (
+	SrcRectConstraintStrict SrcRectConstraint = 0 // adhere to the source rectangle
+	SrcRectConstraintFast   SrcRectConstraint = 1 // may sample outside source rectangle
+)
