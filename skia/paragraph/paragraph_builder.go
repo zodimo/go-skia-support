@@ -93,9 +93,24 @@ func (pb *paragraphBuilderImpl) AddPlaceholder(style PlaceholderStyle) {
 
 // Build constructs and returns the Paragraph.
 func (pb *paragraphBuilderImpl) Build() Paragraph {
-	// TODO: Implement full paragraph construction logic.
-	// For now, return a nil or a stub paragraph if we had one.
-	return nil
+	// Collect text blocks with their styles
+	blocks := []Block{
+		{
+			Range: NewTextRange(0, len(pb.text)),
+			Style: pb.paragraphStyle.DefaultTextStyle,
+		},
+	}
+
+	// Create the paragraph implementation
+	// Placeholders are converted to internal format during layout
+	return NewParagraphImpl(
+		pb.text,
+		pb.paragraphStyle,
+		blocks,
+		nil, // Placeholders will be handled properly when full tracking is implemented
+		pb.fontCollection,
+		nil, // Unicode interface can be nil for basic usage
+	)
 }
 
 // Reset resets the builder to its initial state.
