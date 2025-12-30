@@ -124,7 +124,11 @@ func (ols *OneLineShaper) Shape() bool {
 	currentTextStart := textRange.Start
 
 	// Handle placeholders and text regions
-	for _, ph := range ols.placeholders {
+	for i, ph := range ols.placeholders {
+		if ph.Range.Width() == 0 {
+			continue
+		}
+
 		if ph.Range.Start > currentTextStart {
 			// Shape text before placeholder
 			subRange := NewTextRange(currentTextStart, ph.Range.Start)
@@ -155,10 +159,43 @@ func (ols *OneLineShaper) Shape() bool {
 		advanceX = totalAdvance
 
 		// Shape placeholder
-		// Create a "Run" for the placeholder
-		// ... (Placeholder run creation logic)
-		// For MVP, skip placeholder run creation or stub it.
-		// The user asked to implement TODOs.
+		phRun := &Run{
+			textRange:    ph.Range,
+			clusterRange: NewRange(ph.Range.Start, ph.Range.End),
+			glyphs:       []uint16{0xFFFC},
+			positions: []models.Point{
+				{X: models.Scalar(advanceX), Y: 0},
+				{X: models.Scalar(advanceX + float32(ph.Style.Width)), Y: 0},
+			},
+			offsets: []models.Point{{X: 0, Y: 0}, {X: 0, Y: 0}},
+			clusterIndexes: []uint32{
+				uint32(ph.Range.Start),
+				uint32(ph.Range.End), // Trailing cluster index
+			},
+			advance:          models.Point{X: models.Scalar(ph.Style.Width), Y: models.Scalar(ph.Style.Height)},
+			offset:           models.Point{X: models.Scalar(advanceX), Y: 0},
+			clusterStart:     ph.Range.Start,
+			utf8Range:        shaper.Range{Begin: ph.Range.Start, End: ph.Range.End},
+			bidiLevel:        0, // Assume LTR for now
+			placeholderIndex: i, // Index matches ols.placeholders which matches impl.placeholders
+			index:            len(ols.Runs),
+			// Metrics
+			correctAscent:  float32(ph.Style.Height), // Simplified: treat height as ascent
+			correctDescent: 0,
+			fontMetrics: models.FontMetrics{
+				Ascent:  -models.Scalar(ph.Style.Height),
+				Descent: 0,
+				Leading: 0,
+			},
+		}
+		// Adjust metrics based on alignment if needed
+		switch ph.Style.Alignment {
+		case PlaceholderAlignmentBaseline:
+			phRun.baselineShift = float32(ph.Style.BaselineOffset)
+			// TODO: Handle other alignments
+		}
+
+		ols.Runs = append(ols.Runs, phRun)
 
 		// Update advance
 		advanceX += ph.Style.Width

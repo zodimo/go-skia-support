@@ -8,7 +8,7 @@ import (
 func TestParagraphBuilder_Lifecycle(t *testing.T) {
 	style := NewParagraphStyle()
 	fc := NewFontCollection()
-	builder := MakeParagraphBuilder(style, fc)
+	builder := MakeParagraphBuilder(style, fc, nil)
 
 	if builder == nil {
 		t.Fatal("MakeParagraphBuilder returned nil")
@@ -27,7 +27,7 @@ func TestParagraphBuilder_Lifecycle(t *testing.T) {
 func TestParagraphBuilder_AddText(t *testing.T) {
 	style := NewParagraphStyle()
 	fc := NewFontCollection()
-	builder := MakeParagraphBuilder(style, fc)
+	builder := MakeParagraphBuilder(style, fc, nil)
 
 	builder.AddText("Hello")
 	builder.AddText(" World")
@@ -49,7 +49,7 @@ func TestParagraphBuilder_StyleStack(t *testing.T) {
 	style.DefaultTextStyle.Color = 0xFF0000FF // Red
 
 	fc := NewFontCollection()
-	builder := MakeParagraphBuilder(style, fc)
+	builder := MakeParagraphBuilder(style, fc, nil)
 
 	// Initial style should match default
 	current := builder.PeekStyle()
@@ -78,7 +78,7 @@ func TestParagraphBuilder_StyleStack(t *testing.T) {
 func TestParagraphBuilder_Build(t *testing.T) {
 	style := NewParagraphStyle()
 	fc := NewFontCollection()
-	builder := MakeParagraphBuilder(style, fc)
+	builder := MakeParagraphBuilder(style, fc, nil)
 
 	builder.AddText("Test")
 
@@ -97,7 +97,7 @@ func TestParagraphBuilder_Build(t *testing.T) {
 func TestParagraphBuilder_Build_Empty(t *testing.T) {
 	style := NewParagraphStyle()
 	fc := NewFontCollection()
-	builder := MakeParagraphBuilder(style, fc)
+	builder := MakeParagraphBuilder(style, fc, nil)
 
 	// Build without adding any text
 	para := builder.Build()
@@ -111,7 +111,7 @@ func TestParagraphBuilder_Build_Empty(t *testing.T) {
 func TestParagraphBuilder_AddPlaceholder(t *testing.T) {
 	style := NewParagraphStyle()
 	fc := NewFontCollection()
-	builder := MakeParagraphBuilder(style, fc)
+	builder := MakeParagraphBuilder(style, fc, nil)
 
 	builder.AddText("Hello ")
 
@@ -139,7 +139,7 @@ func TestParagraphBuilder_AddPlaceholder(t *testing.T) {
 func TestParagraphBuilder_MultiplePlaceholders(t *testing.T) {
 	style := NewParagraphStyle()
 	fc := NewFontCollection()
-	builder := MakeParagraphBuilder(style, fc)
+	builder := MakeParagraphBuilder(style, fc, nil)
 
 	// Add text with multiple placeholders
 	builder.AddText("Start ")
@@ -163,7 +163,7 @@ func TestParagraphBuilder_MultiplePlaceholders(t *testing.T) {
 func TestParagraphBuilder_PlaceholderAtStart(t *testing.T) {
 	style := NewParagraphStyle()
 	fc := NewFontCollection()
-	builder := MakeParagraphBuilder(style, fc)
+	builder := MakeParagraphBuilder(style, fc, nil)
 
 	// Start with a placeholder
 	builder.AddPlaceholder(PlaceholderStyle{Width: 30, Height: 30})
@@ -183,7 +183,7 @@ func TestParagraphBuilder_PlaceholderAtStart(t *testing.T) {
 func TestParagraphBuilder_PlaceholderAtEnd(t *testing.T) {
 	style := NewParagraphStyle()
 	fc := NewFontCollection()
-	builder := MakeParagraphBuilder(style, fc)
+	builder := MakeParagraphBuilder(style, fc, nil)
 
 	builder.AddText("Text before placeholder")
 	builder.AddPlaceholder(PlaceholderStyle{Width: 30, Height: 30})
@@ -202,7 +202,7 @@ func TestParagraphBuilder_PlaceholderAtEnd(t *testing.T) {
 func TestParagraphBuilder_PlaceholderOnly(t *testing.T) {
 	style := NewParagraphStyle()
 	fc := NewFontCollection()
-	builder := MakeParagraphBuilder(style, fc)
+	builder := MakeParagraphBuilder(style, fc, nil)
 
 	// Only placeholders, no text
 	builder.AddPlaceholder(PlaceholderStyle{Width: 50, Height: 50})
@@ -222,7 +222,7 @@ func TestParagraphBuilder_PlaceholderOnly(t *testing.T) {
 func TestParagraphBuilder_ResetClearsPlaceholders(t *testing.T) {
 	style := NewParagraphStyle()
 	fc := NewFontCollection()
-	builder := MakeParagraphBuilder(style, fc)
+	builder := MakeParagraphBuilder(style, fc, nil)
 
 	builder.AddText("Hello")
 	builder.AddPlaceholder(PlaceholderStyle{Width: 10, Height: 10})

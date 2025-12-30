@@ -1,5 +1,9 @@
 package paragraph
 
+import (
+	"github.com/zodimo/go-skia-support/skia/interfaces"
+)
+
 // placeholderInfo tracks a placeholder during building.
 type placeholderInfo struct {
 	style     PlaceholderStyle
@@ -44,10 +48,14 @@ type ParagraphBuilder interface {
 }
 
 // MakeParagraphBuilder creates a new ParagraphBuilder with the given style and font collection.
-func MakeParagraphBuilder(style ParagraphStyle, fontCollection *FontCollection) ParagraphBuilder {
+// It optionally accepts a custom SkUnicode implementation. If nil is provided, the paragraph
+// implementation will attempt to use a default or minimal implementation if available,
+// or behave restrictedly. Ideally, provide a valid SkUnicode.
+func MakeParagraphBuilder(style ParagraphStyle, fontCollection *FontCollection, unicode interfaces.SkUnicode) ParagraphBuilder {
 	return &paragraphBuilderImpl{
 		paragraphStyle:   style,
 		fontCollection:   fontCollection,
+		unicode:          unicode,
 		styleStack:       []TextStyle{style.DefaultTextStyle},
 		blocks:           make([]Block, 0),
 		placeholderInfos: make([]placeholderInfo, 0),
@@ -58,6 +66,7 @@ func MakeParagraphBuilder(style ParagraphStyle, fontCollection *FontCollection) 
 type paragraphBuilderImpl struct {
 	paragraphStyle   ParagraphStyle
 	fontCollection   *FontCollection
+	unicode          interfaces.SkUnicode
 	styleStack       []TextStyle
 	text             string
 	blocks           []Block           // Styled text blocks
@@ -194,7 +203,7 @@ func (pb *paragraphBuilderImpl) Build() Paragraph {
 		blocks,
 		placeholders,
 		pb.fontCollection,
-		nil, // Unicode interface can be nil for basic usage
+		pb.unicode,
 	)
 }
 

@@ -105,20 +105,55 @@ func (p *ParagraphImpl) GetRectsForRange(start, end int, rectHeightStyle RectHei
 func (p *ParagraphImpl) GetRectsForPlaceholders() []TextBox {
 	boxes := make([]TextBox, 0)
 
-	if len(p.text) == 0 || len(p.placeholders) == 1 {
+	if len(p.text) == 0 || len(p.placeholders) <= 1 {
 		return boxes
 	}
 
 	// Iterate through clusters to find placeholders
 	for _, cluster := range p.clusters {
 		if run := cluster.Run(); run != nil && run.IsPlaceholder() {
-			rect := models.Rect{
-				Left:   models.Scalar(cluster.StartPos()),
-				Top:    0,
-				Right:  models.Scalar(cluster.EndPos()),
-				Bottom: models.Scalar(p.height),
+			phIdx := run.placeholderIndex
+			if phIdx >= 0 && phIdx < len(p.placeholders) {
+				style := p.placeholders[phIdx].Style
+
+				// Determine position
+				// X is straightforward from cluster position
+				left := float64(cluster.StartPos())
+
+				// Y requires finding line
+				top := 0.0
+				lineNum := p.GetLineNumberAt(cluster.TextRange().Start)
+				if lineNum >= 0 && lineNum < len(p.lines) {
+					line := p.lines[lineNum]
+
+					// Line offset Y
+					top = float64(line.offset.Y)
+
+					// Adjust for alignment if needed?
+					// Run offset usually includes alignment relative to baseline
+					// But for now taking Line Top is consistent with previous naive approach but better
+					// Ideally: top = line.Baseline + run.BaselineShift - Ascent?
+					// Using run.Clip() + line.Offset is ideal but requires run to be correctly positioned in line.
+					// If cluster has position, Run has calculated position.
+					// But finding run in line might be hard if runsInVisualOrder is broken.
+					// However, run.Offset() should be set if Layout ran.
+
+					// Use run.Offset() if available.
+					if run.Offset().Y != 0 {
+						// Run offset is relative to something?
+						// Usually line origin.
+						top += float64(run.Offset().Y)
+					}
+				}
+
+				rect := models.Rect{
+					Left:   models.Scalar(left),
+					Top:    models.Scalar(top),
+					Right:  models.Scalar(left) + models.Scalar(style.Width),
+					Bottom: models.Scalar(top) + models.Scalar(style.Height),
+				}
+				boxes = append(boxes, NewTextBox(rect, p.paragraphStyle.TextDirection))
 			}
-			boxes = append(boxes, NewTextBox(rect, p.paragraphStyle.TextDirection))
 		}
 	}
 
