@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // SkFont controls options applied when drawing and measuring text.
@@ -108,4 +109,7 @@ type SkFont interface {
 	// The advance is the normal distance to move before drawing additional text.
 	// If bounds is not nil, also returns the bounding box of text.
 	MeasureText(text []byte, encoding enums.TextEncoding, bounds *Rect) Scalar
+
+	// GetMetrics returns the font metrics for this font.
+	GetMetrics() models.FontMetrics
 }

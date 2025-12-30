@@ -1,7 +1,13 @@
 package impl
 
 import (
+	"bytes"
+	"encoding/binary"
+	"unicode/utf16"
+
+	"github.com/go-text/typesetting/font"
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // Font default values matching C++ Skia
@@ -208,8 +214,8 @@ func (f *Font) setFlag(flag uint8, set bool) {
 }
 
 // MeasureText returns the advance width of text.
-// This is a simplified implementation for MVP.
-// In a real implementation, this would use font metrics and glyph widths.
+// It decodes the input text according to the specified encoding and measures
+// the cumulative advance width of the corresponding glyphs.
 func (f *Font) MeasureText(text []byte, encoding enums.TextEncoding, bounds *Rect) Scalar {
 	if len(text) == 0 {
 		if bounds != nil {
@@ -218,36 +224,96 @@ func (f *Font) MeasureText(text []byte, encoding enums.TextEncoding, bounds *Rec
 		return 0
 	}
 
-	// Simplified: estimate width based on character count and font size
-	// Real implementation would use actual glyph metrics
-	var charCount int
+	var totalWidth Scalar
+	var runes []rune
 	switch encoding {
 	case enums.TextEncodingUTF8:
-		charCount = len(text) // Simplified - doesn't handle multi-byte chars
+		runes = []rune(string(text))
 	case enums.TextEncodingUTF16:
-		charCount = len(text) / 2
+		if len(text)%2 != 0 {
+			// standard behavior for invalid length? often 0 or best effort
+			return 0
+		}
+		u16s := make([]uint16, len(text)/2)
+		// Assume Little Endian for Skia compatibility unless BOM says otherwise,
+		// but Skia usually defaults to native or specific setup.
+		// Go's text/encoding/unicode might be overkill here.
+		// We'll stick to LE as a safe default for modern systems.
+		err := binary.Read(bytes.NewReader(text), binary.LittleEndian, &u16s)
+		if err != nil {
+			return 0
+		}
+		runes = utf16.Decode(u16s)
 	case enums.TextEncodingUTF32:
-		charCount = len(text) / 4
+		if len(text)%4 != 0 {
+			return 0
+		}
+		runes = make([]rune, len(text)/4)
+		// Assume Little Endian
+		err := binary.Read(bytes.NewReader(text), binary.LittleEndian, &runes)
+		if err != nil {
+			// If binary.Read fails on []rune (int32 alias), do manual loop
+			// binary.Read works for fixed-size values.
+			// Let's degrade to manual loop to be safe if []rune is platform dependent (usually int32)
+			rdr := bytes.NewReader(text)
+			for i := 0; i < len(runes); i++ {
+				var u32 uint32
+				if err := binary.Read(rdr, binary.LittleEndian, &u32); err != nil {
+					break
+				}
+				runes[i] = rune(u32)
+			}
+		}
 	case enums.TextEncodingGlyphID:
-		charCount = len(text) / 2 // GlyphID is uint16
+		// Input text is actually a slice of GlyphIDs (uint16)
+		if len(text)%2 != 0 {
+			return 0
+		}
+		glyphs := make([]uint16, len(text)/2)
+		binary.Read(bytes.NewReader(text), binary.LittleEndian, &glyphs)
+
+		var totalWidth Scalar
+		widths := f.GetWidths(glyphs)
+		for _, w := range widths {
+			totalWidth += w
+		}
+
+		if bounds != nil {
+			metrics := f.GetMetrics()
+			*bounds = Rect{
+				Left:   0,
+				Top:    metrics.Ascent,
+				Right:  totalWidth,
+				Bottom: metrics.Descent,
+			}
+		}
+		return totalWidth
+
 	default:
-		charCount = len(text)
+		runes = []rune(string(text))
 	}
 
-	// Estimate advance width as 0.6 * size per character (reasonable average)
-	width := Scalar(charCount) * f.size * 0.6 * f.scaleX
+	glyphs := make([]uint16, len(runes))
+	for i, r := range runes {
+		glyphs[i] = f.UnicharToGlyph(r)
+	}
+
+	widths := f.GetWidths(glyphs)
+	for _, w := range widths {
+		totalWidth += w
+	}
 
 	if bounds != nil {
-		// Estimate bounding box
+		metrics := f.GetMetrics()
 		*bounds = Rect{
 			Left:   0,
-			Top:    -f.size * 0.8, // ascent
-			Right:  width,
-			Bottom: f.size * 0.2, // descent
+			Top:    metrics.Ascent, // Ascent is typically negative
+			Right:  totalWidth,
+			Bottom: metrics.Descent,
 		}
 	}
 
-	return width
+	return totalWidth
 }
 
 // UnicharToGlyph returns the glyph ID for the given Unicode character.
@@ -258,26 +324,76 @@ func (f *Font) UnicharToGlyph(unichar rune) uint16 {
 }
 
 // GetWidths returns the advance widths for a slice of glyph IDs.
-// This is a simplified implementation for MVP.
-// In a real implementation, this would use the scaler context or cache.
 func (f *Font) GetWidths(glyphs []uint16) []Scalar {
-	// TODO: blocked by lack of SkScalerContext and SkStrike implementation in Go port.
-	// In C++, this calls SkFont::getWidthsBounds which uses SkStrikeSpec::MakeCanonicalized
-	// to get a SkScalerContext and retrieve metrics from the font cache.
-	// For now, we use a heuristic relevant for testing the Shaper logic.
-
 	if len(glyphs) == 0 {
 		return nil
 	}
 	widths := make([]Scalar, len(glyphs))
-	// Simplified MVP logic: width = size * 0.6 * scaleX
-	// This assumes a monospaced-like behavior for "Primitive" shaping.
-	// Real implementation would look up glyph metrics.
-	charWidth := f.size * 0.6 * f.scaleX
-	for i := range glyphs {
-		widths[i] = charWidth
+
+	tf, ok := f.typeface.(*Typeface)
+	if !ok || tf.goTextFace == nil {
+		// Fallback to heuristic
+		charWidth := f.size * 0.6 * f.scaleX
+		for i := range glyphs {
+			widths[i] = charWidth
+		}
+		return widths
+	}
+
+	face := tf.goTextFace
+	upem := Scalar(face.Upem())
+	scale := f.size / upem
+
+	for i, gid := range glyphs {
+		// HorizontalAdvance returns the advance width in font units
+		adv := Scalar(face.HorizontalAdvance(font.GID(gid)))
+		widths[i] = adv * scale * f.scaleX
 	}
 	return widths
+}
+
+// GetMetrics returns the font metrics for this font.
+func (f *Font) GetMetrics() models.FontMetrics {
+	tf, ok := f.typeface.(*Typeface)
+	if !ok || tf.goTextFace == nil {
+		// Fallback
+		return models.FontMetrics{
+			Ascent:  -f.size * 0.8,
+			Descent: f.size * 0.2,
+			Leading: f.size * 0.05,
+		}
+	}
+
+	face := tf.goTextFace
+	scale := f.size / Scalar(face.Upem())
+
+	extents, ok := face.FontHExtents()
+	if !ok {
+		// Fallback if no extents
+		return models.FontMetrics{
+			Ascent:  -f.size * 0.8,
+			Descent: f.size * 0.2,
+			Leading: f.size * 0.05,
+		}
+	}
+
+	// SkFontMetrics conventions (SkFontMetrics.h):
+	// fAscent: distance to reserve above baseline, typically negative.
+	// fDescent: distance to reserve below baseline, typically positive.
+	//
+	// go-text/typesetting/font conventions (standard OpenType):
+	// Ascender: typically positive (up).
+	// Descender: typically negative (down).
+	//
+	// Conversion:
+	// Skia Ascent = -Ascender
+	// Skia Descent = -Descender (since Descender is negative, result is positive)
+
+	return models.FontMetrics{
+		Ascent:  Scalar(-extents.Ascender) * scale,
+		Descent: Scalar(-extents.Descender) * scale,
+		Leading: Scalar(extents.LineGap) * scale,
+	}
 }
 
 // Equals compares two fonts for equality.

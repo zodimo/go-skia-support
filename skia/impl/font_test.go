@@ -1,6 +1,8 @@
 package impl
 
 import (
+	"bytes"
+	"encoding/binary"
 	"testing"
 
 	"github.com/zodimo/go-skia-support/skia/enums"
@@ -341,4 +343,125 @@ func TestFontFlatten(t *testing.T) {
 	}
 
 	t.Logf("Tested %d font attribute combinations", testCount)
+}
+
+func TestFontGetWidths(t *testing.T) {
+	f := NewFont()
+	f.SetSize(20)
+	glyphs := []uint16{1, 2, 3}
+	widths := f.GetWidths(glyphs)
+
+	if len(widths) != 3 {
+		t.Errorf("Expected 3 widths, got %d", len(widths))
+	}
+
+	// Verify fallback width: 20 * 0.6 = 12
+	expected := Scalar(12.0)
+	for i, w := range widths {
+		if w != expected {
+			t.Errorf("Width %d: expected %v, got %v", i, expected, w)
+		}
+	}
+
+	// Test nil/empty
+	if f.GetWidths(nil) != nil {
+		t.Error("Expected nil for nil glyphs")
+	}
+}
+
+func TestFontGetMetrics(t *testing.T) {
+	f := NewFont()
+	f.SetSize(20)
+	metrics := f.GetMetrics()
+
+	// Verify fallback metrics
+	// Ascent: -20 * 0.8 = -16
+	// Descent: 20 * 0.2 = 4
+	// Leading: 20 * 0.05 = 1
+	if metrics.Ascent != -16 {
+		t.Errorf("Expected Ascent -16, got %v", metrics.Ascent)
+	}
+	if metrics.Descent != 4 {
+		t.Errorf("Expected Descent 4, got %v", metrics.Descent)
+	}
+	if metrics.Leading != 1 {
+		t.Errorf("Expected Leading 1, got %v", metrics.Leading)
+	}
+}
+
+func TestFontMeasureTextEncodings(t *testing.T) {
+	f := NewFont()
+	f.SetSize(10.0) // Char width = 10 * 0.6 = 6.0
+	f.SetScaleX(1.0)
+	expectedWidthPerChar := Scalar(6.0)
+
+	tests := []struct {
+		name      string
+		encoding  enums.TextEncoding
+		input     []byte
+		wantChars int
+	}{
+		{
+			name:      "UTF8",
+			encoding:  enums.TextEncodingUTF8,
+			input:     []byte("Hello"),
+			wantChars: 5,
+		},
+		{
+			name:     "UTF16LE",
+			encoding: enums.TextEncodingUTF16,
+			input: func() []byte {
+				buf := new(bytes.Buffer)
+				runes := []rune("Hello")
+				for _, r := range runes {
+					binary.Write(buf, binary.LittleEndian, uint16(r))
+				}
+				return buf.Bytes()
+			}(),
+			wantChars: 5,
+		},
+		{
+			name:      "UTF16 Invalid Length",
+			encoding:  enums.TextEncodingUTF16,
+			input:     []byte{0x00, 0x00, 0x00}, // 3 bytes
+			wantChars: 0,
+		},
+		{
+			name:     "UTF32LE",
+			encoding: enums.TextEncodingUTF32,
+			input: func() []byte {
+				buf := new(bytes.Buffer)
+				runes := []rune("Hello")
+				for _, r := range runes {
+					binary.Write(buf, binary.LittleEndian, uint32(r))
+				}
+				return buf.Bytes()
+			}(),
+			wantChars: 5,
+		},
+		{
+			name:     "GlyphID",
+			encoding: enums.TextEncodingGlyphID,
+			input: func() []byte {
+				buf := new(bytes.Buffer)
+				glyphs := []uint16{1, 2, 3}
+				for _, g := range glyphs {
+					binary.Write(buf, binary.LittleEndian, g)
+				}
+				return buf.Bytes()
+			}(),
+			wantChars: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			width := f.MeasureText(tt.input, tt.encoding, nil)
+			expected := expectedWidthPerChar * Scalar(tt.wantChars)
+			// Allow small float epsilon if needed, but here it's simple multiplication
+			if width != expected {
+				t.Errorf("MeasureText() = %v, want %v", width, expected)
+			}
+		})
+	}
 }

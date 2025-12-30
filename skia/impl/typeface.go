@@ -105,13 +105,17 @@ func (t *Typeface) FamilyName() string {
 }
 
 // UnicharToGlyph returns the glyph ID for the given Unicode character.
-// This is a stub implementation - real implementation requires cmap table parsing.
-// Returns 1 for all characters to indicate "supported" for MVP.
+// Delegates to the typeface, matching C++ SkFont::unicharToGlyph.
 // Ported from: SkTypeface::unicharToGlyph
 func (t *Typeface) UnicharToGlyph(unichar rune) uint16 {
-	// Stub: assume all characters are supported
-	// Real implementation would call onCharsToGlyphs with platform-specific cmap parsing
-	return 1
+	if t.goTextFace != nil {
+		gid, ok := t.goTextFace.NominalGlyph(unichar)
+		if ok {
+			return uint16(gid)
+		}
+	}
+	// Fallback or not found
+	return 0
 }
 
 // MakeClone returns a new typeface with the specified arguments.
