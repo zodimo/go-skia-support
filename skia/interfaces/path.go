@@ -129,4 +129,29 @@ type SkPath interface {
 
 	// Offset translates the path by the specified offset.
 	Offset(dx, dy Scalar)
+
+	// ArcTo appends arc from oval from startAngle through sweepAngle.
+	// Angles are in degrees. Positive sweep is clockwise.
+	// If forceMoveTo is true, starts a new contour; otherwise connects to last point.
+	// Ported from: SkPath.h arcTo(oval, startAngle, sweepAngle, forceMoveTo)
+	ArcTo(oval Rect, startAngle, sweepAngle Scalar, forceMoveTo bool)
+
+	// ArcToTangent appends arc tangent to line from last point through (x1,y1)
+	// to line from (x1,y1) to (x2,y2), with specified radius.
+	// Implements HTML Canvas arcTo and PostScript arct.
+	// Ported from: SkPath.h arcTo(x1, y1, x2, y2, radius)
+	ArcToTangent(x1, y1, x2, y2, radius Scalar)
+
+	// ArcToRotated appends SVG-style elliptical arc to (x,y).
+	// rx, ry are the ellipse radii; xAxisRotate is the rotation in degrees.
+	// Ported from: SkPath.h arcTo(rx, ry, xAxisRotate, largeArc, sweep, x, y)
+	ArcToRotated(rx, ry, xAxisRotate Scalar, largeArc enums.ArcSize, sweep enums.PathDirection, x, y Scalar)
+
+	// RArcTo appends SVG-style elliptical arc relative to current point.
+	// Ported from: SkPath.h rArcTo(rx, ry, xAxisRotate, largeArc, sweep, dx, dy)
+	RArcTo(rx, ry, xAxisRotate Scalar, largeArc enums.ArcSize, sweep enums.PathDirection, dx, dy Scalar)
+
+	// AddArc adds arc as a new contour (starts with implicit MoveTo).
+	// Ported from: SkPath.h addArc(oval, startAngle, sweepAngle)
+	AddArc(oval Rect, startAngle, sweepAngle Scalar)
 }

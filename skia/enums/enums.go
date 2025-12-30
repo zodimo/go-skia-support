@@ -173,3 +173,12 @@ const (
 	SrcRectConstraintStrict SrcRectConstraint = 0 // adhere to the source rectangle
 	SrcRectConstraintFast   SrcRectConstraint = 1 // may sample outside source rectangle
 )
+
+// ArcSize specifies whether to use the large or small arc for SVG-style arcs.
+// Ported from: skia-source/include/core/SkPath.h:ArcSize
+type ArcSize uint8
+
+const (
+	ArcSizeSmall ArcSize = 0 // Smaller of the two arcs
+	ArcSizeLarge ArcSize = 1 // Larger of the two arcs
+)
