@@ -96,13 +96,14 @@ func (rb *runBlock) isFullyResolved() bool {
 }
 
 // NewOneLineShaper creates a new OneLineShaper.
-func NewOneLineShaper(text string, blocks []Block, placeholders []Placeholder, fontCollection *FontCollection, skUnicode interfaces.SkUnicode) *OneLineShaper {
+func NewOneLineShaper(text string, blocks []Block, placeholders []Placeholder, fontCollection *FontCollection, skUnicode interfaces.SkUnicode, bidiRegions []BidiRegion) *OneLineShaper {
 	return &OneLineShaper{
 		text:             text,
 		blocks:           blocks,
 		placeholders:     placeholders,
 		fontCollection:   fontCollection,
 		skUnicode:        skUnicode,
+		bidiRegions:      bidiRegions,
 		resolvedBlocks:   make([]runBlock, 0),
 		unresolvedBlocks: make([]runBlock, 0),
 		Runs:             make([]*Run, 0),
@@ -112,53 +113,72 @@ func NewOneLineShaper(text string, blocks []Block, placeholders []Placeholder, f
 
 // Shape shapes the line.
 func (ols *OneLineShaper) Shape() bool {
-	// Sort placeholders by start index if not already
-	// (Assuming they are sorted for now or small enough)
+	// The text can be broken into many shaping sequences
+	// (by place holders, possibly, by hard line breaks or tabs, too)
+
+	return ols.iterateThroughShapingRegions(func(textRange TextRange, styleSpan []Block, advanceX *float32, textStart int, defaultBidiLevel uint8) bool {
+		return ols.shapeRegion(textRange, styleSpan, advanceX, textStart, defaultBidiLevel)
+	})
+}
+
+// iterateThroughShapingRegions iterates over text regions separated by placeholders.
+func (ols *OneLineShaper) iterateThroughShapingRegions(shapeVisitor func(TextRange, []Block, *float32, int, uint8) bool) bool {
+	bidiIndex := 0
+	advanceX := float32(0.0)
 
 	textRange := NewTextRange(0, len(ols.text))
 	if textRange.Width() == 0 {
 		return true
 	}
 
-	advanceX := float32(0.0)
 	currentTextStart := textRange.Start
 
-	// Handle placeholders and text regions
 	for i, ph := range ols.placeholders {
 		if ph.Range.Width() == 0 {
+			// Skip empty placeholders?? C++ checks `fRange.width() > 0`
 			continue
 		}
 
 		if ph.Range.Start > currentTextStart {
 			// Shape text before placeholder
-			subRange := NewTextRange(currentTextStart, ph.Range.Start)
-			// TODO: Find Bidi regions intersecting this subRange
-			ols.shapeRegion(subRange, ols.blocks, advanceX, subRange.Start, 0)
+			textBeforeRange := NewTextRange(currentTextStart, ph.Range.Start)
 
-			// Advance is updated by shapeRegion via ref/side-effect or we need to calculate it.
-			// Currently shapeRegion updates advance locally but doesn't return it for global tracking easily
-			// unless we track it via ols.Runs or similar.
-			// Let's rely on runs for now or sum up.
-			// Wait, shapeRegion takes `advanceX` as input for offset!
-			// Check logic: ols.advance = models.Point{X: scalar(advanceX), ...}
-			// But it resets it for each style block iteration?
-			// Actually ols.advance is per-shaping-call state?
-			// Let's better tracking.
+			// Intersect with Bidi regions
+			for bidiIndex < len(ols.bidiRegions) {
+				bidiRegion := ols.bidiRegions[bidiIndex]
+				start := max(bidiRegion.Start, textBeforeRange.Start)
+				end := min(bidiRegion.End, textBeforeRange.End)
+
+				if start < end {
+					subRange := NewTextRange(start, end)
+					blocks := ols.findAllBlocks(subRange)
+					if len(blocks) > 0 {
+						if !shapeVisitor(subRange, blocks, &advanceX, start, bidiRegion.Level) {
+							return false
+						}
+					}
+				}
+
+				if bidiRegion.End <= textBeforeRange.End {
+					bidiIndex++
+				}
+				if bidiRegion.End >= textBeforeRange.End {
+					break
+				}
+			}
 		}
-
-		// Calculate advance of text we just shaped
-		// Rough estimation: sum advances of newly added runs.
-		// A bit hacky to rely only on Runs array size change.
-		// For proper implementation, we should track advance.
-
-		// Let's re-calculate total advance from runs
-		totalAdvance := float32(0.0)
-		for _, r := range ols.Runs {
-			totalAdvance += float32(r.Advance().X)
-		}
-		advanceX = totalAdvance
 
 		// Shape placeholder
+		// Determine Bidi Level for placeholder
+		bidiLevel := uint8(0) // Default LTR
+		if bidiIndex < len(ols.bidiRegions) {
+			bidiLevel = ols.bidiRegions[bidiIndex].Level
+		} else {
+			// Fallback or previously used?
+			// C++: `uint8_t bidiLevel = (bidiIndex < fParagraph->fBidiRegions.size()) ? fParagraph->fBidiRegions[bidiIndex].level : 2;`
+			bidiLevel = 2 // 2? SkBidiIterator::Level is uint8.
+		}
+
 		phRun := &Run{
 			textRange:    ph.Range,
 			clusterRange: NewRange(ph.Range.Start, ph.Range.End),
@@ -170,55 +190,94 @@ func (ols *OneLineShaper) Shape() bool {
 			offsets: []models.Point{{X: 0, Y: 0}, {X: 0, Y: 0}},
 			clusterIndexes: []uint32{
 				uint32(ph.Range.Start),
-				uint32(ph.Range.End), // Trailing cluster index
+				uint32(ph.Range.End),
 			},
 			advance:          models.Point{X: models.Scalar(ph.Style.Width), Y: models.Scalar(ph.Style.Height)},
 			offset:           models.Point{X: models.Scalar(advanceX), Y: 0},
 			clusterStart:     ph.Range.Start,
 			utf8Range:        shaper.Range{Begin: ph.Range.Start, End: ph.Range.End},
-			bidiLevel:        0, // Assume LTR for now
-			placeholderIndex: i, // Index matches ols.placeholders which matches impl.placeholders
+			bidiLevel:        bidiLevel,
+			placeholderIndex: i,
 			index:            len(ols.Runs),
-			// Metrics
-			correctAscent:  float32(ph.Style.Height), // Simplified: treat height as ascent
-			correctDescent: 0,
+			correctAscent:    float32(ph.Style.Height),
+			correctDescent:   0,
 			fontMetrics: models.FontMetrics{
 				Ascent:  -models.Scalar(ph.Style.Height),
 				Descent: 0,
 				Leading: 0,
 			},
 		}
-		// Adjust metrics based on alignment if needed
+
+		// Placeholder Alignment
 		switch ph.Style.Alignment {
 		case PlaceholderAlignmentBaseline:
 			phRun.baselineShift = float32(ph.Style.BaselineOffset)
-			// TODO: Handle other alignments
+		case PlaceholderAlignmentAboveBaseline:
+			phRun.baselineShift = float32(ph.Style.BaselineOffset + ph.Style.Height)
+		case PlaceholderAlignmentBelowBaseline:
+			phRun.baselineShift = float32(ph.Style.BaselineOffset - ph.Style.Height)
+		case PlaceholderAlignmentTop:
+			// TODO: Needs line metrics. For now set 0 or similar.
+			// C++ sets 0 and handles in TextLine?
+			// Requirement says "Shift up to line top".
+			// But line top is unknown.
+			phRun.baselineShift = 0
+		case PlaceholderAlignmentBottom:
+			phRun.baselineShift = 0
+		case PlaceholderAlignmentMiddle:
+			phRun.baselineShift = float32(ph.Style.Height) / 2 // Approximation?
 		}
 
 		ols.Runs = append(ols.Runs, phRun)
-
-		// Update advance
 		advanceX += ph.Style.Width
 		currentTextStart = ph.Range.End
 	}
 
+	// Tail
 	if currentTextStart < textRange.End {
 		subRange := NewTextRange(currentTextStart, textRange.End)
+		for bidiIndex < len(ols.bidiRegions) {
+			bidiRegion := ols.bidiRegions[bidiIndex]
+			start := max(bidiRegion.Start, subRange.Start)
+			end := min(bidiRegion.End, subRange.End)
 
-		// Recalculate advance
-		totalAdvance := float32(0.0)
-		for _, r := range ols.Runs {
-			totalAdvance += float32(r.Advance().X)
+			if start < end {
+				currentRange := NewTextRange(start, end)
+				blocks := ols.findAllBlocks(currentRange)
+				if len(blocks) > 0 {
+					if !shapeVisitor(currentRange, blocks, &advanceX, start, bidiRegion.Level) {
+						return false
+					}
+				}
+			}
+			if bidiRegion.End <= subRange.End {
+				bidiIndex++
+			}
+			if bidiRegion.End >= subRange.End {
+				break
+			}
 		}
-
-		ols.shapeRegion(subRange, ols.blocks, totalAdvance, subRange.Start, 0)
 	}
 
 	return true
 }
 
+// findAllBlocks finds block styles for the given range
+func (ols *OneLineShaper) findAllBlocks(textRange TextRange) []Block {
+	// Simple linear search or reuse finding logic
+	var result []Block
+	for _, block := range ols.blocks {
+		start := max(block.Range.Start, textRange.Start)
+		end := min(block.Range.End, textRange.End)
+		if start < end {
+			result = append(result, block)
+		}
+	}
+	return result
+}
+
 // shapeRegion shapes a specific region of text.
-func (ols *OneLineShaper) shapeRegion(textRange TextRange, styleSpan []Block, advanceX float32, textStart int, defaultBidiLevel uint8) bool {
+func (ols *OneLineShaper) shapeRegion(textRange TextRange, styleSpan []Block, advanceX *float32, textStart int, defaultBidiLevel uint8) bool {
 	hbShaper := shaper.NewHarfbuzzShaper()
 
 	// Iterate through font styles
@@ -226,7 +285,7 @@ func (ols *OneLineShaper) shapeRegion(textRange TextRange, styleSpan []Block, ad
 		ols.height = 0 // simplified: get from block style
 		ols.useHalfLeading = false
 		ols.baselineShift = 0.0
-		ols.advance = models.Point{X: models.Scalar(advanceX), Y: 0}
+		ols.advance = models.Point{X: models.Scalar(*advanceX), Y: 0}
 
 		// Start with one unresolved block covering the whole style block range
 		ols.unresolvedBlocks = append(ols.unresolvedBlocks, newRunBlock(block.Range))
@@ -262,8 +321,12 @@ func (ols *OneLineShaper) shapeRegion(textRange TextRange, styleSpan []Block, ad
 				// Create iterators
 				fontIter := shaper.NewTrivialFontRunIterator(font, len(unresolvedText))
 				bidiIter := shaper.NewTrivialBiDiRunIterator(defaultBidiLevel, len(unresolvedText))
-				scriptIter := shaper.NewTrivialScriptRunIterator(0, len(unresolvedText))    // TODO: Real script detection
-				langIter := shaper.NewTrivialLanguageRunIterator("en", len(unresolvedText)) // TODO: Real lang detection
+				scriptIter := shaper.NewScriptRunIterator(unresolvedText, len(unresolvedText))
+				locale := block.Style.Locale
+				if locale == "" {
+					locale = "en"
+				}
+				langIter := shaper.NewTrivialLanguageRunIterator(locale, len(unresolvedText))
 
 				// Adjust features for this sub-range
 				var adjustedFeatures []shaper.Feature
@@ -296,7 +359,7 @@ func (ols *OneLineShaper) shapeRegion(textRange TextRange, styleSpan []Block, ad
 			return resolvedNothing
 		})
 
-		ols.finish(block, ols.height, &advanceX)
+		ols.finish(block, ols.height, advanceX)
 	})
 
 	return true
@@ -358,21 +421,22 @@ func (ols *OneLineShaper) finish(block Block, height float32, advanceX *float32)
 
 // oneLineRunHandler handles callbacks from the shaper.
 type oneLineRunHandler struct {
-	ols        *OneLineShaper
-	textStart  int
-	textRange  TextRange
-	currentRun *Run
+	ols             *OneLineShaper
+	textStart       int
+	textRange       TextRange
+	runs            []*Run
+	currentRunIndex int
 }
 
-func (h *oneLineRunHandler) BeginLine()  {}
+func (h *oneLineRunHandler) BeginLine() {
+	h.runs = nil
+	h.currentRunIndex = 0
+}
+
 func (h *oneLineRunHandler) CommitLine() {}
 func (h *oneLineRunHandler) RunInfo(info shaper.RunInfo) {
 	// Create a Run
-	// Note: Harfbuzz shaper returns info with local offsets (0-based)
-	// We need to map back to global offsets if needed, but Run typically stores local.
-	// `NewRun` takes firstChar index.
-
-	h.currentRun = NewRun(
+	run := NewRun(
 		info,
 		h.textStart, // firstChar
 		h.ols.height,
@@ -382,22 +446,27 @@ func (h *oneLineRunHandler) RunInfo(info shaper.RunInfo) {
 		float32(h.ols.advance.X),
 	)
 	h.ols.uniqueRunID++
+	h.runs = append(h.runs, run)
 }
 
 func (h *oneLineRunHandler) CommitRunInfo() {}
 
 func (h *oneLineRunHandler) RunBuffer(info shaper.RunInfo) shaper.Buffer {
-	if h.currentRun == nil {
+	if h.currentRunIndex >= len(h.runs) {
 		return shaper.Buffer{}
 	}
-	return h.currentRun.NewRunBuffer()
+	run := h.runs[h.currentRunIndex]
+	h.currentRunIndex++
+	return run.NewRunBuffer()
 }
 
 func (h *oneLineRunHandler) CommitRunBuffer(info shaper.RunInfo) {
-	if h.currentRun == nil {
+	if h.currentRunIndex == 0 || h.currentRunIndex > len(h.runs) {
 		return
 	}
-	h.ols.commitRunBuffer(h.currentRun)
+	// RunBuffer incremented index, so we access previous
+	run := h.runs[h.currentRunIndex-1]
+	h.ols.commitRunBuffer(run)
 }
 
 // commitRunBuffer processes the shaped run, separating resolved and unresolved glyphs.
@@ -804,7 +873,7 @@ func (ols *OneLineShaper) matchResolvedFonts(style TextStyle, visitor func(inter
 					// TODO: Add DefaultEmojiFallback to FontCollection interface?
 					// C++: fFontCollection->defaultEmojiFallback(emojiStart, ...)
 					// For now fall back to DefaultFallback which likely handles it if font mgr supports it.
-					typeface = ols.fontCollection.DefaultFallback(rune(emojiStart), style.FontStyle, style.Locale)
+					typeface = ols.fontCollection.DefaultEmojiFallback(rune(emojiStart), style.FontStyle, style.Locale)
 				}
 
 				if typeface == nil {

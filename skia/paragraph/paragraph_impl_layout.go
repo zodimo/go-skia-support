@@ -251,7 +251,7 @@ func (p *ParagraphImpl) shapeTextIntoEndlessLine() bool {
 	p.unresolvedCodepoints = make(map[rune]struct{})
 
 	// Create shaper and shape
-	shaper := NewOneLineShaper(p.text, p.textStyles, p.placeholders, p.fontCollection, p.unicode)
+	shaper := NewOneLineShaper(p.text, p.textStyles, p.placeholders, p.fontCollection, p.unicode, p.bidiRegions)
 	result := shaper.Shape()
 	p.unresolvedGlyphs = shaper.unresolvedGlyphs
 

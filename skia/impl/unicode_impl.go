@@ -24,6 +24,9 @@ func (u *SkUnicodeImpl) FindPreviousGraphemeBoundary(text string, offset int) in
 
 	// Move back to find the rune boundary if offset is mid-rune
 	start := offset
+	if start == len(text) {
+		start--
+	}
 	for !utf8.RuneStart(text[start]) {
 		start--
 		if start < 0 {
