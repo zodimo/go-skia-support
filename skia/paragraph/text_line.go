@@ -1,6 +1,8 @@
 package paragraph
 
 import (
+	"math"
+
 	"github.com/zodimo/go-skia-support/skia/impl"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
@@ -557,4 +559,127 @@ type TextBlobRecord struct {
 
 func (r *TextBlobRecord) Paint(painter ParagraphPainter, x, y float32) {
 	// ...
+}
+
+// GetRectsForRange returns bounding boxes for the given text range.
+func (tl *TextLine) GetRectsForRange(textRange TextRange, rectHeightStyle RectHeightStyle, rectWidthStyle RectWidthStyle) []TextBox {
+	boxes := make([]TextBox, 0)
+
+	// Check line intersection
+	// Use textIncludingNewlines to ensure we cover the whole line range if needed
+	lineRange := tl.textIncludingNewlines
+	intersection := lineRange.Intersection(textRange)
+	if intersection.Width() == 0 {
+		// Handle zero-width range (cursor) if it falls exactly at start/end?
+		if intersection.Start == intersection.End && (intersection.Start == lineRange.Start || intersection.Start == lineRange.End) {
+			// fallback to standard processing to potentially generate a cursor rect
+		} else {
+			return boxes
+		}
+	}
+
+	// Iterate runs
+	for _, runIndex := range tl.runsInVisualOrder {
+		run := tl.owner.Run(runIndex)
+		runRange := run.TextRange()
+		runIntersection := runRange.Intersection(textRange)
+
+		if runIntersection.Width() == 0 && runIntersection.Start != runIntersection.End {
+			continue
+		}
+		// If intersection is empty but we are at the edge, we might need a cursor rect?
+		// For now focus on selection.
+
+		if runIntersection.Start >= runIntersection.End {
+			continue
+		}
+
+		// Calculate run bounds for this intersection
+		// Iterate glyphs to find min/max X
+		minX := float32(math.Inf(1))
+		maxX := float32(math.Inf(-1))
+		// found := -1
+
+		// Access run internals (package private)
+		glyphCount := len(run.glyphs)
+		for i := 0; i < glyphCount; i++ {
+			cluster := int(run.clusterIndexes[i])
+			// Check if cluster is within intersection
+			// Be careful with cluster mapping (logic is separate from run visual logic)
+			// Simply check if cluster index is in range
+			if cluster >= runIntersection.Start && cluster < runIntersection.End {
+				pos := run.positions[i].X
+				nextPos := run.positions[i+1].X // run.positions has glyphCount+1 elements
+				// width := nextPos - pos
+
+				// Handle RTL/LTR
+				// If run is RTL, pos might be greater than nextPos?
+				// Layout usually normalizes positions to be visual L->R or R->L?
+				// positions are absolute X offsets.
+
+				left := float32(pos)
+				right := float32(nextPos)
+				if left > right {
+					left, right = right, left
+				}
+
+				if left < minX {
+					minX = left
+				}
+				if right > maxX {
+					maxX = right
+				}
+			}
+		}
+
+		if minX == float32(math.Inf(1)) {
+			// No glyphs matched? Might be whitespace or unmapped
+			continue
+		}
+
+		// Apply run offset
+		minX += float32(run.offset.X)
+		maxX += float32(run.offset.X)
+
+		// Calculate vertical bounds based on RectHeightStyle
+		top := float32(tl.offset.Y)
+		bottom := float32(tl.offset.Y) + tl.Height()
+
+		switch rectHeightStyle {
+		case RectHeightStyleMax:
+			// Use line height (already set)
+		case RectHeightStyleIncludeLineSpacingTop:
+			// Simplified to Max for now
+		case RectHeightStyleIncludeLineSpacingMiddle:
+			// Simplified to Max
+		case RectHeightStyleIncludeLineSpacingBottom:
+			// Simplified to Max
+		case RectHeightStyleStrut:
+			// Use strut
+		case RectHeightStyleTight:
+			// Use run metrics
+			baseline := tl.Baseline()
+			top = float32(tl.offset.Y) + baseline - run.Ascent()
+			bottom = float32(tl.offset.Y) + baseline + run.Descent()
+		}
+
+		rect := models.Rect{
+			Left:   models.Scalar(minX + float32(tl.offset.X)),
+			Top:    models.Scalar(top),
+			Right:  models.Scalar(maxX + float32(tl.offset.X)),
+			Bottom: models.Scalar(bottom),
+		}
+
+		direction := TextDirectionLTR
+		if run.bidiLevel%2 != 0 {
+			direction = TextDirectionRTL
+		}
+
+		boxes = append(boxes, NewTextBox(rect, direction))
+	}
+
+	// Merge boxes if RectWidthStyle says so (e.g. Tight)
+	// Only merge adjacent boxes?
+
+	return boxes
 }

@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/zodimo/go-skia-support/skia/models"
+	"golang.org/x/text/unicode/bidi"
 )
 
 // --- Layout (main entry point) ---
@@ -178,12 +179,64 @@ func (p *ParagraphImpl) computeCodeUnitProperties() bool {
 		p.hasWhitespacesInside = true
 	}
 
-	// Default bidi: entire text is LTR or RTL based on paragraph style
-	level := uint8(0)
+	// BiDi Analysis
+	// Use golang.org/x/text/unicode/bidi to determine embedding levels
+	paragraphDir := bidi.LeftToRight
 	if p.paragraphStyle.TextDirection == TextDirectionRTL {
-		level = 1
+		paragraphDir = bidi.RightToLeft
 	}
-	p.bidiRegions = []BidiRegion{{Start: 0, End: len(p.text), Level: level}}
+
+	// Analyze the text
+	fallback := true
+	if len(p.text) > 0 {
+		var bidiPara bidi.Paragraph
+		// Use bidi.DefaultDirection to set the base direction preference
+		_, err := bidiPara.SetString(p.text, bidi.DefaultDirection(paragraphDir))
+
+		if err == nil {
+			// Get ordering to ensure we have runs
+			ordering, err := bidiPara.Order()
+			if err == nil && ordering.NumRuns() > 0 {
+				run := bidiPara.RunAt(0)
+				if len(run.String()) > 0 {
+					fallback = false
+					p.bidiRegions = make([]BidiRegion, 0)
+
+					for pos := 0; pos < len(p.text); {
+						run := bidiPara.RunAt(pos)
+						text := run.String()
+						length := len(text)
+						if length == 0 {
+							break
+						}
+
+						dir := run.Direction()
+						level := uint8(0)
+						if dir == bidi.RightToLeft {
+							level = 1
+						}
+
+						p.bidiRegions = append(p.bidiRegions, BidiRegion{
+							Start: pos,
+							End:   pos + length,
+							Level: level,
+						})
+
+						pos += length
+					}
+				}
+			}
+		}
+	}
+
+	if fallback {
+		// Fallback for empty text or failure
+		level := uint8(0)
+		if p.paragraphStyle.TextDirection == TextDirectionRTL {
+			level = 1
+		}
+		p.bidiRegions = []BidiRegion{{Start: 0, End: len(p.text), Level: level}}
+	}
 
 	return true
 }
