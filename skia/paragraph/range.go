@@ -87,6 +87,12 @@ func NewBlockRange(start, end int) BlockRange {
 	return Range[int]{Start: start, End: end}
 }
 
+// NewClusterRange creates a new ClusterRange with the given start and end.
+// ClusterRange type is defined in run.go.
+func NewClusterRange(start, end int) Range[int] {
+	return Range[int]{Start: start, End: end}
+}
+
 // helper functions for generic min/max
 func min[T ~int | ~int32 | ~int64 | ~uint | ~uint32 | ~uint64](a, b T) T {
 	if a < b {

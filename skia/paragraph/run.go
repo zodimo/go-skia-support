@@ -521,3 +521,14 @@ func (r *Run) Clip() models.Rect {
 		Bottom: r.offset.Y + r.advance.Y,
 	}
 }
+
+// UpdateMetrics updates line metrics based on placeholder style.
+// Used for placeholder runs to update the line metrics according to alignment.
+func (r *Run) UpdateMetrics(metrics *InternalLineMetrics) {
+	if !r.IsPlaceholder() {
+		return
+	}
+	// Placeholder runs affect metrics based on their baseline alignment.
+	// For now, use the run's ascent/descent.
+	metrics.AddRun(r)
+}
