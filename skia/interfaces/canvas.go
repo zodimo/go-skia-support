@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // SkCanvas represents a drawing surface that can be implemented by any graphics backend.
@@ -115,6 +116,34 @@ type SkCanvas interface {
 	// Ported from: skia-source/include/core/SkCanvas.h:drawPoints() - line 1330
 	DrawPoints(mode enums.PointMode, points []Point, paint SkPaint)
 
+	// DrawLine draws a single line segment between two points.
+	// This is a convenience wrapper around DrawPoints(PointModeLines, ...).
+	//
+	// Ported from: skia-source/include/core/SkCanvas.h:drawLine() - line 1392
+	DrawLine(p0, p1 Point, paint SkPaint)
+
+	// DrawCircle draws a circle centered at center with the given radius.
+	// This is a convenience wrapper around DrawOval.
+	// If radius is <= 0, nothing is drawn.
+	//
+	// Ported from: skia-source/include/core/SkCanvas.h:drawCircle() - line 1503
+	DrawCircle(center Point, radius Scalar, paint SkPaint)
+
+	// DrawImage draws the specified image at (left, top).
+	// The image is drawn with its top-left corner at (left, top).
+	// Optional paint can be used to apply alpha, color filter, image filter, etc.
+	//
+	// Ported from: skia-source/include/core/SkCanvas.h:drawImage() - line 1586
+	DrawImage(image SkImage, left, top Scalar, paint SkPaint)
+
+	// DrawImageRect draws a sub-rectangle of the image, scaled to a destination rectangle.
+	// src: The subset of the image to draw. If nil, the entire image is drawn.
+	// dst: The destination rectangle on the canvas.
+	// paint: Optional paint.
+	//
+	// Ported from: skia-source/include/core/SkCanvas.h:drawImageRect() - line 1614
+	DrawImageRect(image SkImage, src *Rect, dst Rect, paint SkPaint)
+
 	// Text Drawing Methods
 	// Ported from: skia-source/include/core/SkCanvas.h lines 1807-2030
 
@@ -196,6 +225,14 @@ type SkCanvas interface {
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:save() - line ~850
 	Save() int
+
+	// SaveLayer saves current matrix and clip, and allocates a new offscreen layer.
+	// bounds: Optional bounds for the layer. If nil, size is determined by clip.
+	// paint: Optional paint to apply when restoring the layer (alpha, blend mode, filters).
+	// Returns the new save count.
+	//
+	// Ported from: skia-source/include/core/SkCanvas.h:saveLayer() - line 625
+	SaveLayer(bounds *models.Rect, paint SkPaint) int
 
 	// Restore removes the most recent save state from the stack, restoring matrix and clip to previous values.
 	// Does nothing if the stack is empty (save count is 1).
