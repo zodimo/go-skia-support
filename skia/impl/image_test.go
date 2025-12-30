@@ -134,7 +134,7 @@ func TestMakeRasterCopy(t *testing.T) {
 }
 
 func TestRasterImage_ColorSpace(t *testing.T) {
-	cs := models.NewColorSpaceSrgb()
+	cs := models.MakeSRGB()
 	info := models.NewImageInfo(10, 10, enums.ColorTypeRGBA8888, enums.AlphaTypePremul).WithColorSpace(cs)
 	rowBytes := 10 * 4
 	pixels := make([]byte, rowBytes*10)
