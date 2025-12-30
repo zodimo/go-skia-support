@@ -1,6 +1,7 @@
 package paragraph
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -81,10 +82,161 @@ func TestParagraphBuilder_Build(t *testing.T) {
 
 	builder.AddText("Test")
 
-	// Currently Build() returns nil, so we just check it doesn't panic
 	para := builder.Build()
-	if para != nil {
-		// If we implement a stub, this might change, but for now we expect nil or check behavior.
-		// Since we returned nil in implementation, this is expected behavior for now.
+	if para == nil {
+		t.Fatal("Build() returned nil, expected ParagraphImpl")
+	}
+
+	// Verify it's a ParagraphImpl
+	_, ok := para.(*ParagraphImpl)
+	if !ok {
+		t.Error("Build() did not return a *ParagraphImpl")
+	}
+}
+
+func TestParagraphBuilder_Build_Empty(t *testing.T) {
+	style := NewParagraphStyle()
+	fc := NewFontCollection()
+	builder := MakeParagraphBuilder(style, fc)
+
+	// Build without adding any text
+	para := builder.Build()
+	if para == nil {
+		t.Fatal("Build() returned nil for empty paragraph")
+	}
+}
+
+// --- Placeholder Tests ---
+
+func TestParagraphBuilder_AddPlaceholder(t *testing.T) {
+	style := NewParagraphStyle()
+	fc := NewFontCollection()
+	builder := MakeParagraphBuilder(style, fc)
+
+	builder.AddText("Hello ")
+
+	// Add a placeholder
+	phStyle := NewPlaceholderStyle()
+	phStyle.Width = 50
+	phStyle.Height = 20
+	builder.AddPlaceholder(phStyle)
+
+	builder.AddText(" World")
+
+	// Text should contain the placeholder character (U+FFFC)
+	text := builder.GetText()
+	if !strings.Contains(text, "\uFFFC") {
+		t.Error("Text should contain placeholder marker character U+FFFC")
+	}
+
+	// Build and verify
+	para := builder.Build()
+	if para == nil {
+		t.Fatal("Build() returned nil")
+	}
+}
+
+func TestParagraphBuilder_MultiplePlaceholders(t *testing.T) {
+	style := NewParagraphStyle()
+	fc := NewFontCollection()
+	builder := MakeParagraphBuilder(style, fc)
+
+	// Add text with multiple placeholders
+	builder.AddText("Start ")
+	builder.AddPlaceholder(PlaceholderStyle{Width: 10, Height: 10})
+	builder.AddText(" middle ")
+	builder.AddPlaceholder(PlaceholderStyle{Width: 20, Height: 20})
+	builder.AddText(" end")
+
+	text := builder.GetText()
+	count := strings.Count(text, "\uFFFC")
+	if count != 2 {
+		t.Errorf("Expected 2 placeholder markers, got %d", count)
+	}
+
+	para := builder.Build()
+	if para == nil {
+		t.Fatal("Build() returned nil")
+	}
+}
+
+func TestParagraphBuilder_PlaceholderAtStart(t *testing.T) {
+	style := NewParagraphStyle()
+	fc := NewFontCollection()
+	builder := MakeParagraphBuilder(style, fc)
+
+	// Start with a placeholder
+	builder.AddPlaceholder(PlaceholderStyle{Width: 30, Height: 30})
+	builder.AddText("Text after placeholder")
+
+	text := builder.GetText()
+	if !strings.HasPrefix(text, "\uFFFC") {
+		t.Error("Text should start with placeholder marker")
+	}
+
+	para := builder.Build()
+	if para == nil {
+		t.Fatal("Build() returned nil")
+	}
+}
+
+func TestParagraphBuilder_PlaceholderAtEnd(t *testing.T) {
+	style := NewParagraphStyle()
+	fc := NewFontCollection()
+	builder := MakeParagraphBuilder(style, fc)
+
+	builder.AddText("Text before placeholder")
+	builder.AddPlaceholder(PlaceholderStyle{Width: 30, Height: 30})
+
+	text := builder.GetText()
+	if !strings.HasSuffix(text, "\uFFFC") {
+		t.Error("Text should end with placeholder marker")
+	}
+
+	para := builder.Build()
+	if para == nil {
+		t.Fatal("Build() returned nil")
+	}
+}
+
+func TestParagraphBuilder_PlaceholderOnly(t *testing.T) {
+	style := NewParagraphStyle()
+	fc := NewFontCollection()
+	builder := MakeParagraphBuilder(style, fc)
+
+	// Only placeholders, no text
+	builder.AddPlaceholder(PlaceholderStyle{Width: 50, Height: 50})
+	builder.AddPlaceholder(PlaceholderStyle{Width: 30, Height: 30})
+
+	text := builder.GetText()
+	if text != "\uFFFC\uFFFC" {
+		t.Errorf("Expected two placeholder markers, got %q", text)
+	}
+
+	para := builder.Build()
+	if para == nil {
+		t.Fatal("Build() returned nil")
+	}
+}
+
+func TestParagraphBuilder_ResetClearsPlaceholders(t *testing.T) {
+	style := NewParagraphStyle()
+	fc := NewFontCollection()
+	builder := MakeParagraphBuilder(style, fc)
+
+	builder.AddText("Hello")
+	builder.AddPlaceholder(PlaceholderStyle{Width: 10, Height: 10})
+
+	builder.Reset()
+
+	// After reset, text should be empty
+	if builder.GetText() != "" {
+		t.Error("Text should be empty after Reset")
+	}
+
+	// Build after reset should work
+	para := builder.Build()
+	if para == nil {
+		t.Fatal("Build() returned nil after Reset")
 	}
 }
