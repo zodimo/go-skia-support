@@ -7,6 +7,7 @@ import (
 	"math"
 
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/geometry"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 )
 
@@ -106,31 +107,37 @@ func buildUnitArc(startV, stopV Point, dir enums.PathDirection, conics []Conic) 
 }
 
 // buildArcConics builds conic curves to represent an arc on an oval
-// Ported from: SkPathBuilder.cpp build_arc_conics
+// Uses geometry.BuildUnitArc for proper multi-segment arc support
 func buildArcConics(oval Rect, startV, stopV Point, dir enums.PathDirection) ([]Conic, Point, int) {
-	conics := make([]Conic, MaxConicsForArc)
+	// Use geometry.BuildUnitArc for proper multi-quadrant support
+	// Types are unified: geometry.Point == models.Point == impl.Point
+	geoConics := geometry.BuildUnitArc(startV, stopV, dir, nil)
 
-	// Build unit arc
-	count := buildUnitArc(startV, stopV, dir, conics)
 	rx := (oval.Right - oval.Left) / 2
 	ry := (oval.Bottom - oval.Top) / 2
 	cx := (oval.Left + oval.Right) / 2
 	cy := (oval.Top + oval.Bottom) / 2
-	if count == 0 {
+
+	if len(geoConics) == 0 {
 		// Degenerate case - return single point
 		singlePt := Point{X: cx + rx*stopV.X, Y: cy + ry*stopV.Y}
 		return nil, singlePt, 0
 	}
 
-	// Transform from unit circle to oval
-	for i := 0; i < count; i++ {
-		for j := 0; j < 3; j++ {
-			conics[i].Pts[j].X = cx + rx*conics[i].Pts[j].X
-			conics[i].Pts[j].Y = cy + ry*conics[i].Pts[j].Y
+	// Convert geometry.Conic to impl.Conic and transform to oval
+	conics := make([]Conic, len(geoConics))
+	for i, gc := range geoConics {
+		conics[i] = Conic{
+			Pts: [3]Point{
+				{X: cx + rx*gc.Pts[0].X, Y: cy + ry*gc.Pts[0].Y},
+				{X: cx + rx*gc.Pts[1].X, Y: cy + ry*gc.Pts[1].Y},
+				{X: cx + rx*gc.Pts[2].X, Y: cy + ry*gc.Pts[2].Y},
+			},
+			W: gc.W,
 		}
 	}
 
-	return conics[:count], Point{}, count
+	return conics, Point{}, len(conics)
 }
 
 // ArcTo appends arc from oval from startAngle through sweepAngle.
