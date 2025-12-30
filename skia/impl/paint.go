@@ -2,6 +2,7 @@ package impl
 
 import (
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
 
@@ -82,33 +83,40 @@ func (p *Paint) Reset() {
 }
 
 // Equals compares two paints for equality
-func (p *Paint) Equals(other *Paint) bool {
+func (p *Paint) Equals(other interfaces.SkPaint) bool {
 	if p == nil && other == nil {
 		return true
 	}
 	if p == nil || other == nil {
 		return false
 	}
+
+	// Cast to *Paint to access fields
+	otherPaint, ok := other.(*Paint)
+	if !ok {
+		return false
+	}
+
 	// Compare blendMode (handle nil cases)
 	var blendModeEqual bool
-	if p.blendMode == nil && other.blendMode == nil {
+	if p.blendMode == nil && otherPaint.blendMode == nil {
 		blendModeEqual = true
-	} else if p.blendMode != nil && other.blendMode != nil {
-		blendModeEqual = *p.blendMode == *other.blendMode
+	} else if p.blendMode != nil && otherPaint.blendMode != nil {
+		blendModeEqual = *p.blendMode == *otherPaint.blendMode
 	} else {
 		blendModeEqual = false
 	}
-	return p.PathEffect == other.PathEffect &&
-		p.Shader == other.Shader &&
-		p.MaskFilter == other.MaskFilter &&
-		p.ColorFilter == other.ColorFilter &&
-		p.Blender == other.Blender &&
-		p.ImageFilter == other.ImageFilter &&
+	return p.PathEffect == otherPaint.PathEffect &&
+		p.Shader == otherPaint.Shader &&
+		p.MaskFilter == otherPaint.MaskFilter &&
+		p.ColorFilter == otherPaint.ColorFilter &&
+		p.Blender == otherPaint.Blender &&
+		p.ImageFilter == otherPaint.ImageFilter &&
 		blendModeEqual &&
-		p.Color4f == other.Color4f &&
-		p.Width == other.Width &&
-		p.MiterLimit == other.MiterLimit &&
-		p.Bitfields == other.Bitfields
+		p.Color4f == otherPaint.Color4f &&
+		p.Width == otherPaint.Width &&
+		p.MiterLimit == otherPaint.MiterLimit &&
+		p.Bitfields == otherPaint.Bitfields
 }
 
 // SetColor sets the paint color
