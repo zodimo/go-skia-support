@@ -306,4 +306,10 @@ type SkCanvas interface {
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:skew() - line 976
 	Skew(sx Scalar, sy Scalar)
+
+	// ResetMatrix sets the current matrix to the identity matrix.
+	// Any prior matrix state is overwritten.
+	//
+	// Ported from: skia-source/include/core/SkCanvas.h:resetMatrix() - line 1007
+	ResetMatrix()
 }
