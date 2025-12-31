@@ -554,6 +554,11 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 		return nil
 	}
 
+	scaleX := float32(skFont.ScaleX())
+	if scaleX == 0 {
+		scaleX = 1
+	}
+
 	fullTextRunes := []rune(text)
 
 	// Map byte offsets to rune indices
@@ -635,7 +640,7 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 	for i, g := range output.Glyphs {
 		glyphs[i] = uint16(g.GlyphID)
 
-		padX := fixedToFloat(g.XOffset)
+		padX := fixedToFloat(g.XOffset) * scaleX
 		padY := -fixedToFloat(g.YOffset)
 
 		positions[i] = models.Point{
@@ -643,7 +648,7 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 			Y: models.Scalar(currentY + padY),
 		}
 
-		currentX += fixedToFloat(g.XAdvance)
+		currentX += fixedToFloat(g.XAdvance) * scaleX
 		currentY += -fixedToFloat(g.YAdvance)
 
 		runeIdx := g.ClusterIndex
