@@ -59,3 +59,5 @@ func dotProduct(a, b Point) Scalar {
 func scalarPin(x, lo, hi Scalar) Scalar {
 	return helpers.ScalarPin(x, lo, hi)
 }
+
+type RSXform = models.RSXform
