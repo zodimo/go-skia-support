@@ -101,19 +101,32 @@ func MakeTextBlobFromRSXform(text []byte, encoding enums.TextEncoding, rsxforms 
 		return nil
 	}
 
-	// Convert text to glyphs
-	glyphs := textToGlyphs(text, encoding)
+	// Convert text to glyphs using the font's cmap lookup
+	var glyphs []GlyphID
+	switch encoding {
+	case enums.TextEncodingUTF8:
+		// Decode UTF-8 runes and look up glyph IDs
+		runes := []rune(string(text))
+		for _, r := range runes {
+			gid := font.UnicharToGlyph(r)
+			glyphs = append(glyphs, GlyphID(gid))
+		}
+	case enums.TextEncodingGlyphID:
+		// Already glyph IDs
+		for i := 0; i+1 < len(text); i += 2 {
+			gid := uint16(text[i]) | (uint16(text[i+1]) << 8)
+			glyphs = append(glyphs, GlyphID(gid))
+		}
+	default:
+		// Fallback to legacy behavior for other encodings
+		glyphs = textToGlyphs(text, encoding)
+	}
+
 	if len(glyphs) == 0 {
 		return nil
 	}
 
 	// Ensure glyph count matches rsxform count
-	// In a real implementation, shaping might result in different glyph count than input chars.
-	// SkRSXform usually assumes one transform per char/glyph.
-	// For this port, we'll assume 1-to-1 if counts match, or truncate/zero-pad if not?
-	// Skia docs say: "The number of RSXforms must equal the number of glyphs."
-	// Since we are doing simple text-to-glyph mapping (1 char = 1 glyph or 2 bytes = 1 glyph),
-	// we should check if len(glyphs) matches len(rsxforms).
 	count := len(glyphs)
 	if count > len(rsxforms) {
 		count = len(rsxforms)
@@ -121,9 +134,6 @@ func MakeTextBlobFromRSXform(text []byte, encoding enums.TextEncoding, rsxforms 
 	}
 
 	// Calculate bounds
-	// This is more complex with RSXform. We need to apply the xform to the glyph bounds.
-	// For now, we can approximate or compute it.
-	// Let's implement calculateTextBoundsRSXform.
 	bounds := calculateTextBoundsRSXform(glyphs, rsxforms, font)
 
 	run := TextBlobRun{
