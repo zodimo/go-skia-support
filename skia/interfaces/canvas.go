@@ -36,6 +36,18 @@ type SkCanvas interface {
 	// Drawing Methods
 	// Ported from: skia-source/include/core/SkCanvas.h lines 1287-1584
 
+	// DrawColor fills the clip with the specified color.
+	// mode determines how ARGB is combined with destination.
+	//
+	// Ported from: skia-source/include/core/SkCanvas.h:drawColor() - line 1245
+	DrawColor(color models.Color4f, mode enums.BlendMode)
+
+	// Clear fills the clip with the specified color using SkBlendMode::kSrc.
+	// This has the effect of replacing all pixels contained by the clip with the color.
+	//
+	// Ported from: skia-source/include/core/SkCanvas.h:clear() - line 1261
+	Clear(color models.Color4f)
+
 	// DrawPaint fills the current clip region with the specified paint.
 	// The paint's color, blend mode, shader, color filter, and image filter affect drawing.
 	// MaskFilter and PathEffect in paint are ignored (have no effect).
