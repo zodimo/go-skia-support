@@ -38,6 +38,11 @@ Enumerations for various graphics operations:
 - **PathDirection**: Contour direction (CW, CCW)
 - **PathConvexity**: Path convexity classification
 - **MatrixType**: Matrix classification flags
+### `geometry/`
+Geometric primitives and utilities:
+- **Conic**: Conic section curves for accurate path rendering
+- **Helpers**: Geometric algorithms and utility functions
+
 
 ### `impl/`
 Concrete implementations of the interfaces:
@@ -58,6 +63,20 @@ Concrete implementations of the interfaces:
   - Perspective transformations
   - Point and rect mapping
   - Matrix concatenation (pre/post)
+### `paragraph/`
+Advanced text layout engine (port of SkParagraph):
+- **Paragraph**: High-level text layout and rendering
+- **Builder**: Fluent builder pattern for creating paragraphs
+- **Styling**: Rich text styling (TextStyle, ParagraphStyle)
+- **Types**: Layout primitives (TextBox, Position, Range)
+
+### `shaper/`
+Text shaping and processing:
+- **Shaper**: Interface for text shaping engines
+- **HarfBuzz**: Production-grade shaping using HarfBuzz
+- **Script & Bidi**: Script detection and bidirectional text analysis
+- **Font Management**: Font fallback and collection handling
+
 
 ### `helpers/`
 Utility functions for mathematical operations:
