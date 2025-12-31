@@ -182,3 +182,33 @@ const (
 	ArcSizeSmall ArcSize = 0 // Smaller of the two arcs
 	ArcSizeLarge ArcSize = 1 // Larger of the two arcs
 )
+
+// ColorChannel describes different color channels one can manipulate
+// Matches C++ SkColorChannel enum class from include/core/SkColor.h
+type ColorChannel uint8
+
+const (
+	ColorChannelR    ColorChannel = 0
+	ColorChannelG    ColorChannel = 1
+	ColorChannelB    ColorChannel = 2
+	ColorChannelA    ColorChannel = 3
+	ColorChannelLast ColorChannel = ColorChannelA
+)
+
+// ColorChannelFlag represents the channels available in a color type or texture format as a mask.
+// Matches C++ SkColorChannelFlag enum from include/core/SkColor.h
+type ColorChannelFlag uint32
+
+const (
+	ColorChannelFlagRed   ColorChannelFlag = 1 << ColorChannelR
+	ColorChannelFlagGreen ColorChannelFlag = 1 << ColorChannelG
+	ColorChannelFlagBlue  ColorChannelFlag = 1 << ColorChannelB
+	ColorChannelFlagAlpha ColorChannelFlag = 1 << ColorChannelA
+	ColorChannelFlagGray  ColorChannelFlag = 0x10
+
+	// Convenience values
+	ColorChannelFlagGrayAlpha ColorChannelFlag = ColorChannelFlagGray | ColorChannelFlagAlpha
+	ColorChannelFlagRG        ColorChannelFlag = ColorChannelFlagRed | ColorChannelFlagGreen
+	ColorChannelFlagRGB       ColorChannelFlag = ColorChannelFlagRG | ColorChannelFlagBlue
+	ColorChannelFlagRGBA      ColorChannelFlag = ColorChannelFlagRGB | ColorChannelFlagAlpha
+)
