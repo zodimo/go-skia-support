@@ -69,12 +69,88 @@ type PathEffect interface {
 // Shader specifies the premultiplied source color(s) for what is being drawn.
 // If a paint has no shader, then the paint's color is used. If the paint has a
 // shader, then the shader's color(s) are used instead, but they are
-// modulated by the paint's alpha.
+// modulated by the paint's alpha. This makes it easy to create a shader
+// once (e.g., bitmap tiling or gradient) and then change its transparency
+// without having to modify the original shader — only the paint's alpha needs
+// to be modified.
+//
+// Ported from: include/core/SkShader.h
+// https://github.com/google/skia/blob/main/include/core/SkShader.h
 type Shader interface {
-	// IsOpaque returns true if the shader is guaranteed to produce only opaque colors,
-	// subject to the Paint using the shader to apply an opaque alpha value.
-	// This method is optional - implementations may return false if unknown.
+	// =========================================================================
+	// Core SkShader Methods (from include/core/SkShader.h)
+	// =========================================================================
+
+	// IsOpaque returns true if the shader is guaranteed to produce only opaque
+	// colors, subject to the Paint using the shader to apply an opaque alpha value.
+	// Subclasses should override this to allow some optimizations.
 	IsOpaque() bool
+
+	// IsAImage returns true if this shader is backed by a single SkImage.
+	// If localMatrix is non-nil and this returns true, localMatrix is set to
+	// the shader's local matrix. If tileMode is non-nil and this returns true,
+	// tileMode[0] and tileMode[1] are set to the x and y tile modes.
+	IsAImage(localMatrix *SkMatrix, tileMode []enums.TileMode) bool
+
+	// IsAImageSimple returns true if this shader is backed by a single SkImage.
+	// This is the simple form that doesn't extract matrix or tile modes.
+	IsAImageSimple() bool
+
+	// MakeWithLocalMatrix returns a shader that will apply the specified localMatrix
+	// to this shader. The specified matrix will be applied before any matrix
+	// associated with this shader.
+	MakeWithLocalMatrix(localMatrix SkMatrix) Shader
+
+	// MakeWithColorFilter creates a new shader that produces the same colors as
+	// invoking this shader and then applying the colorfilter.
+	MakeWithColorFilter(filter ColorFilter) Shader
+
+	// MakeWithWorkingColorSpace returns a shader that will compute this shader
+	// in a context such that any child shaders return RGBA values converted to
+	// the inputCS colorspace.
+	//
+	// It is assumed that the RGBA values returned by this shader have been
+	// transformed into outputCS. By default, shaders are assumed to return values
+	// in the destination colorspace and premultiplied.
+	//
+	// A nil inputCS is assumed to be the destination CS.
+	// A nil outputCS is assumed to be the inputCS.
+	MakeWithWorkingColorSpace(inputCS, outputCS *models.ColorSpace) Shader
+
+	// =========================================================================
+	// Extended SkShaderBase Methods (from src/shaders/SkShaderBase.h)
+	// =========================================================================
+
+	// UniqueID returns a value unique to this shader instance.
+	// Used for caching and equality comparisons.
+	UniqueID() uint32
+
+	// IsConstant returns true if the shader is guaranteed to produce only a single color.
+	// If color is non-nil and this returns true, color is set to that constant color.
+	// Subclasses can override this to allow loop-hoisting optimization.
+	IsConstant(color *models.Color4f) bool
+
+	// Type returns the ShaderType enum identifying this shader's concrete type.
+	Type() enums.ShaderType
+
+	// AsGradient returns the GradientType if this shader can be represented as a gradient.
+	// Returns GradientTypeNone if it cannot. If info is non-nil, populates it with
+	// the gradient parameters. If localMatrix is non-nil, populates it with the
+	// shader's local matrix.
+	//
+	// See models.GradientInfo for details on how the info struct is populated
+	// for different gradient types.
+	AsGradient(info *models.GradientInfo, localMatrix *SkMatrix) enums.GradientType
+
+	// =========================================================================
+	// Utility Methods
+	// =========================================================================
+
+	// MakeInvertAlpha returns a shader with inverted alpha.
+	MakeInvertAlpha() Shader
+
+	// MakeWithCTM returns a shader that owns its own CTM (current transform matrix).
+	MakeWithCTM(ctm SkMatrix) Shader
 }
 
 // MaskFilter is the interface for objects that modify the mask before it is used.
