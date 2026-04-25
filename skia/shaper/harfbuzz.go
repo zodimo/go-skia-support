@@ -9,6 +9,7 @@ import (
 	"github.com/go-text/typesetting/language"
 	"github.com/go-text/typesetting/segmenter"
 	"github.com/go-text/typesetting/shaping"
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 	"golang.org/x/image/math/fixed"
@@ -324,7 +325,7 @@ func extractFromModel(model *shapedRunData, start, end textProps, byteStart, byt
 		startX = float32(model.positions[start.glyphLen].X)
 	}
 	for i := range positions {
-		positions[i].X = models.Scalar(float32(positions[i].X) - startX)
+		positions[i].X = base.Scalar(float32(positions[i].X) - startX)
 	}
 
 	return &shapedRunData{
@@ -333,7 +334,7 @@ func extractFromModel(model *shapedRunData, start, end textProps, byteStart, byt
 			BidiLevel:  model.info.BidiLevel,
 			Script:     model.info.Script,
 			Language:   model.info.Language,
-			Advance:    models.Point{X: models.Scalar(end.advance - start.advance), Y: 0},
+			Advance:    models.Point{X: base.Scalar(end.advance - start.advance), Y: 0},
 			GlyphCount: uint64(glyphCount),
 			Utf8Range:  Range{Begin: byteStart, End: byteEnd},
 		},
@@ -644,8 +645,8 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 		padY := -fixedToFloat(g.YOffset)
 
 		positions[i] = models.Point{
-			X: models.Scalar(currentX + padX),
-			Y: models.Scalar(currentY + padY),
+			X: base.Scalar(currentX + padX),
+			Y: base.Scalar(currentY + padY),
 		}
 
 		currentX += fixedToFloat(g.XAdvance) * scaleX
@@ -665,7 +666,7 @@ func (s *HarfbuzzShaper) shapeRunCollect(text string, start, end int,
 			BidiLevel:  bidiLevel,
 			Script:     script,
 			Language:   lang,
-			Advance:    models.Point{X: models.Scalar(currentX), Y: models.Scalar(currentY)},
+			Advance:    models.Point{X: base.Scalar(currentX), Y: base.Scalar(currentY)},
 			GlyphCount: uint64(count),
 			Utf8Range:  Range{Begin: start, End: end},
 		},

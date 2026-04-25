@@ -1,36 +1,42 @@
 package interfaces
 
+import (
+	"github.com/zodimo/go-skia-support/skia/base"
+	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/models"
+)
+
 type SkMatrix interface {
 	// Getters
-	Get(index int) Scalar
-	Get9() [9]Scalar
-	GetRC(row, col int) Scalar
-	GetPerspX() Scalar
-	GetPerspY() Scalar
-	GetScaleX() Scalar
-	GetScaleY() Scalar
-	GetSkewX() Scalar
-	GetSkewY() Scalar
-	GetTranslateX() Scalar
-	GetTranslateY() Scalar
-	GetType() MatrixType
+	Get(index int) base.Scalar
+	Get9() [9]base.Scalar
+	GetRC(row, col int) base.Scalar
+	GetPerspX() base.Scalar
+	GetPerspY() base.Scalar
+	GetScaleX() base.Scalar
+	GetScaleY() base.Scalar
+	GetSkewX() base.Scalar
+	GetSkewY() base.Scalar
+	GetTranslateX() base.Scalar
+	GetTranslateY() base.Scalar
+	GetType() enums.MatrixType
 
 	// Setters
-	Set(index int, value Scalar)
-	Set9(values [9]Scalar)
-	SetAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2 Scalar)
-	SetScaleX(v Scalar)
-	SetScaleY(v Scalar)
-	SetSkewX(v Scalar)
-	SetSkewY(v Scalar)
-	SetTranslateX(v Scalar)
-	SetTranslateY(v Scalar)
-	SetPerspX(v Scalar)
-	SetPerspY(v Scalar)
-	SetScale(sx Scalar, sy Scalar)
-	SetSkew(kx Scalar, ky Scalar)
-	SetTranslate(dx Scalar, dy Scalar)
-	SetRotate(degrees Scalar, px Scalar, py Scalar)
+	Set(index int, value base.Scalar)
+	Set9(values [9]base.Scalar)
+	SetAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2 base.Scalar)
+	SetScaleX(v base.Scalar)
+	SetScaleY(v base.Scalar)
+	SetSkewX(v base.Scalar)
+	SetSkewY(v base.Scalar)
+	SetTranslateX(v base.Scalar)
+	SetTranslateY(v base.Scalar)
+	SetPerspX(v base.Scalar)
+	SetPerspY(v base.Scalar)
+	SetScale(sx base.Scalar, sy base.Scalar)
+	SetSkew(kx base.Scalar, ky base.Scalar)
+	SetTranslate(dx base.Scalar, dy base.Scalar)
+	SetRotate(degrees base.Scalar, px base.Scalar, py base.Scalar)
 	SetConcat(a SkMatrix, b SkMatrix)
 	SetIdentity()
 	Reset()
@@ -44,23 +50,23 @@ type SkMatrix interface {
 	RectStaysRect() bool
 
 	// Transformations
-	PreTranslate(dx Scalar, dy Scalar)
-	PreScale(sx Scalar, sy Scalar)
-	PreSkew(kx Scalar, ky Scalar)
-	PreRotate(degrees Scalar, px Scalar, py Scalar)
+	PreTranslate(dx base.Scalar, dy base.Scalar)
+	PreScale(sx base.Scalar, sy base.Scalar)
+	PreSkew(kx base.Scalar, ky base.Scalar)
+	PreRotate(degrees base.Scalar, px base.Scalar, py base.Scalar)
 	PreConcat(other SkMatrix)
-	PostTranslate(dx Scalar, dy Scalar)
-	PostScale(sx Scalar, sy Scalar)
-	PostSkew(kx Scalar, ky Scalar)
-	PostRotate(degrees Scalar, px Scalar, py Scalar)
+	PostTranslate(dx base.Scalar, dy base.Scalar)
+	PostScale(sx base.Scalar, sy base.Scalar)
+	PostSkew(kx base.Scalar, ky base.Scalar)
+	PostRotate(degrees base.Scalar, px base.Scalar, py base.Scalar)
 	PostConcat(other SkMatrix)
 
 	// Mapping
-	MapPoint(pt Point) Point
-	MapXY(x, y Scalar) (Scalar, Scalar)
-	MapPoints(dst []Point, src []Point) int
-	MapRect(rect Rect) Rect
-	MapRectToRect(src Rect, dst Rect) bool
+	MapPoint(pt models.Point) models.Point
+	MapXY(x, y base.Scalar) (base.Scalar, base.Scalar)
+	MapPoints(dst []models.Point, src []models.Point) int
+	MapRect(rect models.Rect) models.Rect
+	MapRectToRect(src models.Rect, dst models.Rect) bool
 
 	// Advanced
 	Invert() (SkMatrix, bool)

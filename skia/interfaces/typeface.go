@@ -56,7 +56,7 @@ type SkTypeface interface {
 
 	// GetGlyphBounds returns the bounding box for a glyph in font units.
 	// This is the raw value from the font tables, not scaled by font size.
-	GetGlyphBounds(glyphID uint16) Rect
+	GetGlyphBounds(glyphID uint16) models.Rect
 
 	// GetGlyphPath returns the outline path for a glyph.
 	// Returns an error if the glyph has no outline (e.g., space character, bitmap glyph).

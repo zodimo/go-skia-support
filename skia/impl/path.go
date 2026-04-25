@@ -4,6 +4,7 @@ import (
 	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 var _ interfaces.SkPath = &pathImpl{}
@@ -11,14 +12,14 @@ var _ interfaces.SkPath = &pathImpl{}
 // pathImpl implements SkPath interface
 // This is a verbatim port from the C++ SkPath implementation
 type pathImpl struct {
-	points          []Point
+	points          []models.Point
 	verbs           []enums.PathVerb
-	conicWeights    []Scalar
+	conicWeights    []base.Scalar
 	fillType        enums.PathFillType
 	isVolatile      bool
 	convexity       enums.PathConvexity
 	lastMoveToIndex int
-	bounds          Rect
+	bounds          models.Rect
 	boundsDirty     bool
 }
 
@@ -36,59 +37,59 @@ func NewSkPath(fillType enums.PathFillType) interfaces.SkPath {
 
 // NewPathRect creates a new path containing a rectangle.
 // This is a static factory method matching Skia's SkPath::Rect().
-func NewPathRect(rect Rect, fillType enums.PathFillType, dir enums.PathDirection, startIndex uint) interfaces.SkPath {
+func NewPathRect(rect models.Rect, fillType enums.PathFillType, dir enums.PathDirection, startIndex uint) interfaces.SkPath {
 	path := NewSkPath(fillType).(*pathImpl)
 	path.AddRect(rect, dir, startIndex)
 	return path
 }
 
 // NewPathRectDefault creates a new path containing a rectangle with default fill type.
-func NewPathRectDefault(rect Rect, dir enums.PathDirection, startIndex uint) interfaces.SkPath {
+func NewPathRectDefault(rect models.Rect, dir enums.PathDirection, startIndex uint) interfaces.SkPath {
 	return NewPathRect(rect, enums.PathFillTypeDefault, dir, startIndex)
 }
 
 // NewPathOval creates a new path containing an oval (ellipse).
 // This is a static factory method matching Skia's SkPath::Oval().
-func NewPathOval(rect Rect, fillType enums.PathFillType, dir enums.PathDirection) interfaces.SkPath {
+func NewPathOval(rect models.Rect, fillType enums.PathFillType, dir enums.PathDirection) interfaces.SkPath {
 	path := NewSkPath(fillType).(*pathImpl)
 	path.AddOval(rect, dir)
 	return path
 }
 
 // NewPathOvalDefault creates a new path containing an oval with default fill type.
-func NewPathOvalDefault(rect Rect, dir enums.PathDirection) interfaces.SkPath {
+func NewPathOvalDefault(rect models.Rect, dir enums.PathDirection) interfaces.SkPath {
 	return NewPathOval(rect, enums.PathFillTypeDefault, dir)
 }
 
 // NewPathCircle creates a new path containing a circle.
 // This is a static factory method matching Skia's SkPath::Circle().
-func NewPathCircle(cx, cy, radius Scalar, fillType enums.PathFillType, dir enums.PathDirection) interfaces.SkPath {
+func NewPathCircle(cx, cy, radius base.Scalar, fillType enums.PathFillType, dir enums.PathDirection) interfaces.SkPath {
 	path := NewSkPath(fillType).(*pathImpl)
 	path.AddCircle(cx, cy, radius, dir)
 	return path
 }
 
 // NewPathCircleDefault creates a new path containing a circle with default fill type.
-func NewPathCircleDefault(cx, cy, radius Scalar, dir enums.PathDirection) interfaces.SkPath {
+func NewPathCircleDefault(cx, cy, radius base.Scalar, dir enums.PathDirection) interfaces.SkPath {
 	return NewPathCircle(cx, cy, radius, enums.PathFillTypeDefault, dir)
 }
 
 // NewPathRRect creates a new path containing a rounded rectangle.
 // This is a static factory method matching Skia's SkPath::RRect().
-func NewPathRRect(rrect RRect, fillType enums.PathFillType, dir enums.PathDirection) interfaces.SkPath {
+func NewPathRRect(rrect models.RRect, fillType enums.PathFillType, dir enums.PathDirection) interfaces.SkPath {
 	path := NewSkPath(fillType).(*pathImpl)
 	path.AddRRect(rrect, dir)
 	return path
 }
 
 // NewPathRRectDefault creates a new path containing a rounded rectangle with default fill type.
-func NewPathRRectDefault(rrect RRect, dir enums.PathDirection) interfaces.SkPath {
+func NewPathRRectDefault(rrect models.RRect, dir enums.PathDirection) interfaces.SkPath {
 	return NewPathRRect(rrect, enums.PathFillTypeDefault, dir)
 }
 
 // NewPathLine creates a new path containing a line segment.
 // This is a static factory method matching Skia's SkPath::Line().
-func NewPathLine(a, b Point, fillType enums.PathFillType) interfaces.SkPath {
+func NewPathLine(a, b models.Point, fillType enums.PathFillType) interfaces.SkPath {
 	path := NewSkPath(fillType).(*pathImpl)
 	path.MoveToPoint(a)
 	path.LineToPoint(b)
@@ -96,7 +97,7 @@ func NewPathLine(a, b Point, fillType enums.PathFillType) interfaces.SkPath {
 }
 
 // NewPathLineDefault creates a new path containing a line segment with default fill type.
-func NewPathLineDefault(a, b Point) interfaces.SkPath {
+func NewPathLineDefault(a, b models.Point) interfaces.SkPath {
 	return NewPathLine(a, b, enums.PathFillTypeDefault)
 }
 
@@ -174,15 +175,15 @@ func (p *pathImpl) CountPoints() int {
 }
 
 // Point returns the point at the specified index.
-func (p *pathImpl) Point(index int) Point {
+func (p *pathImpl) Point(index int) models.Point {
 	if index >= 0 && index < len(p.points) {
 		return p.points[index]
 	}
-	return Point{X: 0, Y: 0}
+	return models.Point{X: 0, Y: 0}
 }
 
 // GetPoints copies all points from the path into the provided slice.
-func (p *pathImpl) GetPoints(points []Point) int {
+func (p *pathImpl) GetPoints(points []models.Point) int {
 	n := len(points)
 	if n > len(p.points) {
 		n = len(p.points)
@@ -208,11 +209,11 @@ func (p *pathImpl) GetVerbs(verbs []enums.PathVerb) int {
 
 // ConicWeights returns a read-only view of the path's conic weights.
 // Returns a copy of the conic weights slice.
-func (p *pathImpl) ConicWeights() []Scalar {
+func (p *pathImpl) ConicWeights() []base.Scalar {
 	if len(p.conicWeights) == 0 {
 		return nil
 	}
-	weights := make([]Scalar, len(p.conicWeights))
+	weights := make([]base.Scalar, len(p.conicWeights))
 	copy(weights, p.conicWeights)
 	return weights
 }
@@ -220,15 +221,15 @@ func (p *pathImpl) ConicWeights() []Scalar {
 // GetLastPoint returns the last point in the path.
 // Returns the point and true if the path contains one or more points,
 // otherwise returns a zero point and false.
-func (p *pathImpl) GetLastPoint() (Point, bool) {
+func (p *pathImpl) GetLastPoint() (models.Point, bool) {
 	if len(p.points) == 0 {
-		return Point{}, false
+		return models.Point{}, false
 	}
 	return p.points[len(p.points)-1], true
 }
 
 // Bounds returns the bounding box of the path.
-func (p *pathImpl) Bounds() Rect {
+func (p *pathImpl) Bounds() models.Rect {
 	if p.boundsDirty {
 		p.updateBounds()
 	}
@@ -241,7 +242,7 @@ func (p *pathImpl) UpdateBoundsCache() {
 }
 
 // ComputeTightBounds returns a tight bounding box of the path.
-func (p *pathImpl) ComputeTightBounds() Rect {
+func (p *pathImpl) ComputeTightBounds() models.Rect {
 	// If we're only lines, then our (quick) bounds is also tight.
 	if p.getSegmentMasks() == base.SegmentMaskLine {
 		return p.Bounds()
@@ -250,52 +251,52 @@ func (p *pathImpl) ComputeTightBounds() Rect {
 }
 
 // MoveTo starts a new contour at the specified point.
-func (p *pathImpl) MoveTo(x, y Scalar) {
+func (p *pathImpl) MoveTo(x, y base.Scalar) {
 	if len(p.verbs) > 0 && p.verbs[len(p.verbs)-1] == enums.PathVerbMove {
 		// Replace the last move point
-		p.points[len(p.points)-1] = Point{X: x, Y: y}
+		p.points[len(p.points)-1] = models.Point{X: x, Y: y}
 	} else {
 		// Remember our index
 		p.lastMoveToIndex = len(p.points)
 		p.verbs = append(p.verbs, enums.PathVerbMove)
-		p.points = append(p.points, Point{X: x, Y: y})
+		p.points = append(p.points, models.Point{X: x, Y: y})
 	}
 	p.dirtyAfterEdit()
 }
 
 // MoveToPoint starts a new contour at the specified point.
-func (p *pathImpl) MoveToPoint(pt Point) {
+func (p *pathImpl) MoveToPoint(pt models.Point) {
 	p.MoveTo(pt.X, pt.Y)
 }
 
 // LineTo adds a line from the last point to the specified point.
-func (p *pathImpl) LineTo(x, y Scalar) {
+func (p *pathImpl) LineTo(x, y base.Scalar) {
 	p.injectMoveToIfNeeded()
 	p.verbs = append(p.verbs, enums.PathVerbLine)
-	p.points = append(p.points, Point{X: x, Y: y})
+	p.points = append(p.points, models.Point{X: x, Y: y})
 	p.dirtyAfterEdit()
 }
 
 // LineToPoint adds a line from the last point to the specified point.
-func (p *pathImpl) LineToPoint(pt Point) {
+func (p *pathImpl) LineToPoint(pt models.Point) {
 	p.LineTo(pt.X, pt.Y)
 }
 
 // QuadTo adds a quadratic bezier from the last point to the specified point.
-func (p *pathImpl) QuadTo(cx, cy, x, y Scalar) {
+func (p *pathImpl) QuadTo(cx, cy, x, y base.Scalar) {
 	p.injectMoveToIfNeeded()
 	p.verbs = append(p.verbs, enums.PathVerbQuad)
-	p.points = append(p.points, Point{X: cx, Y: cy}, Point{X: x, Y: y})
+	p.points = append(p.points, models.Point{X: cx, Y: cy}, models.Point{X: x, Y: y})
 	p.dirtyAfterEdit()
 }
 
 // QuadToPoint adds a quadratic bezier from the last point to the specified point.
-func (p *pathImpl) QuadToPoint(c, pt Point) {
+func (p *pathImpl) QuadToPoint(c, pt models.Point) {
 	p.QuadTo(c.X, c.Y, pt.X, pt.Y)
 }
 
 // ConicTo adds a conic bezier from the last point to the specified point.
-func (p *pathImpl) ConicTo(cx, cy, x, y Scalar, w Scalar) {
+func (p *pathImpl) ConicTo(cx, cy, x, y base.Scalar, w base.Scalar) {
 	// check for <= 0 or NaN with this test
 	if !(w > 0) {
 		p.LineTo(x, y)
@@ -307,27 +308,27 @@ func (p *pathImpl) ConicTo(cx, cy, x, y Scalar, w Scalar) {
 	} else {
 		p.injectMoveToIfNeeded()
 		p.verbs = append(p.verbs, enums.PathVerbConic)
-		p.points = append(p.points, Point{X: cx, Y: cy}, Point{X: x, Y: y})
+		p.points = append(p.points, models.Point{X: cx, Y: cy}, models.Point{X: x, Y: y})
 		p.conicWeights = append(p.conicWeights, w)
 		p.dirtyAfterEdit()
 	}
 }
 
 // ConicToPoint adds a conic bezier from the last point to the specified point.
-func (p *pathImpl) ConicToPoint(c, pt Point, w Scalar) {
+func (p *pathImpl) ConicToPoint(c, pt models.Point, w base.Scalar) {
 	p.ConicTo(c.X, c.Y, pt.X, pt.Y, w)
 }
 
 // CubicTo adds a cubic bezier from the last point to the specified point.
-func (p *pathImpl) CubicTo(cx1, cy1, cx2, cy2, x, y Scalar) {
+func (p *pathImpl) CubicTo(cx1, cy1, cx2, cy2, x, y base.Scalar) {
 	p.injectMoveToIfNeeded()
 	p.verbs = append(p.verbs, enums.PathVerbCubic)
-	p.points = append(p.points, Point{X: cx1, Y: cy1}, Point{X: cx2, Y: cy2}, Point{X: x, Y: y})
+	p.points = append(p.points, models.Point{X: cx1, Y: cy1}, models.Point{X: cx2, Y: cy2}, models.Point{X: x, Y: y})
 	p.dirtyAfterEdit()
 }
 
 // CubicToPoint adds a cubic bezier from the last point to the specified point.
-func (p *pathImpl) CubicToPoint(c1, c2, pt Point) {
+func (p *pathImpl) CubicToPoint(c1, c2, pt models.Point) {
 	p.CubicTo(c1.X, c1.Y, c2.X, c2.Y, pt.X, pt.Y)
 }
 
@@ -352,20 +353,20 @@ func (p *pathImpl) Close() {
 }
 
 // AddRect adds a rectangle to the path.
-func (p *pathImpl) AddRect(rect Rect, dir enums.PathDirection, startIndex uint) {
+func (p *pathImpl) AddRect(rect models.Rect, dir enums.PathDirection, startIndex uint) {
 	p.addRaw(RectPathRaw(rect, dir, startIndex))
 }
 
 // AddOval adds an oval to the path.
-func (p *pathImpl) AddOval(rect Rect, dir enums.PathDirection) {
+func (p *pathImpl) AddOval(rect models.Rect, dir enums.PathDirection) {
 	// legacy start index: 1
 	p.addRaw(OvalPathRaw(rect, dir, 1))
 }
 
 // AddCircle adds a circle to the path.
-func (p *pathImpl) AddCircle(cx, cy, radius Scalar, dir enums.PathDirection) {
+func (p *pathImpl) AddCircle(cx, cy, radius base.Scalar, dir enums.PathDirection) {
 	if radius > 0 {
-		p.AddOval(Rect{
+		p.AddOval(models.Rect{
 			Left:   cx - radius,
 			Top:    cy - radius,
 			Right:  cx + radius,
@@ -375,7 +376,7 @@ func (p *pathImpl) AddCircle(cx, cy, radius Scalar, dir enums.PathDirection) {
 }
 
 // AddRRect adds a rounded rectangle to the path.
-func (p *pathImpl) AddRRect(rrect RRect, dir enums.PathDirection) {
+func (p *pathImpl) AddRRect(rrect models.RRect, dir enums.PathDirection) {
 	// legacy start indices: 6 (CW) and 7 (CCW)
 	startIndex := uint(6)
 	if dir == enums.PathDirectionCCW {
@@ -385,7 +386,7 @@ func (p *pathImpl) AddRRect(rrect RRect, dir enums.PathDirection) {
 }
 
 // AddRRect adds a rounded rectangle to the path with a specific start index.
-func (p *pathImpl) addRRectWithStart(rrect RRect, dir enums.PathDirection, startIndex uint) {
+func (p *pathImpl) addRRectWithStart(rrect models.RRect, dir enums.PathDirection, startIndex uint) {
 	if rrect.IsRect() || rrect.IsEmpty() {
 		// degenerate(rect) => radii points are collapsing
 		bounds := rrect.Bounds()
@@ -400,26 +401,26 @@ func (p *pathImpl) addRRectWithStart(rrect RRect, dir enums.PathDirection, start
 }
 
 // AddPath adds another path to this path with offset.
-func (p *pathImpl) AddPath(path interfaces.SkPath, dx, dy Scalar, addMode enums.AddPathMode) {
+func (p *pathImpl) AddPath(path interfaces.SkPath, dx, dy base.Scalar, addMode enums.AddPathMode) {
 	// Create a translation matrix for the offset
 	matrix := NewMatrixTranslate(dx, dy)
 	p.addPathWithMatrix(path, matrix, addMode)
 }
 
 // AddPathNoOffset adds another path to this path without offset.
-func (p *pathImpl) AddPathNoOffset(path SkPath, addMode enums.AddPathMode) {
+func (p *pathImpl) AddPathNoOffset(path interfaces.SkPath, addMode enums.AddPathMode) {
 	// Use identity matrix (no transformation)
 	matrix := NewMatrixIdentity()
 	p.addPathWithMatrix(path, matrix, addMode)
 }
 
 // AddPathMatrix adds another path to this path with matrix transformation.
-func (p *pathImpl) AddPathMatrix(path SkPath, matrix SkMatrix, addMode enums.AddPathMode) {
+func (p *pathImpl) AddPathMatrix(path interfaces.SkPath, matrix interfaces.SkMatrix, addMode enums.AddPathMode) {
 	p.addPathWithMatrix(path, matrix, addMode)
 }
 
 // addPathWithMatrix adds another path to this path with a matrix transformation.
-func (p *pathImpl) addPathWithMatrix(srcPath SkPath, matrix SkMatrix, mode enums.AddPathMode) {
+func (p *pathImpl) addPathWithMatrix(srcPath interfaces.SkPath, matrix interfaces.SkMatrix, mode enums.AddPathMode) {
 
 	// If source path is empty, nothing to do
 	if srcPath == nil || srcPath.IsEmpty() {
@@ -433,11 +434,11 @@ func (p *pathImpl) addPathWithMatrix(srcPath SkPath, matrix SkMatrix, mode enums
 		fillType := p.fillType
 		if srcImpl, ok := srcPath.(*pathImpl); ok {
 			// Copy the path data
-			p.points = make([]Point, len(srcImpl.points))
+			p.points = make([]models.Point, len(srcImpl.points))
 			copy(p.points, srcImpl.points)
 			p.verbs = make([]enums.PathVerb, len(srcImpl.verbs))
 			copy(p.verbs, srcImpl.verbs)
-			p.conicWeights = make([]Scalar, len(srcImpl.conicWeights))
+			p.conicWeights = make([]base.Scalar, len(srcImpl.conicWeights))
 			copy(p.conicWeights, srcImpl.conicWeights)
 			p.lastMoveToIndex = srcImpl.lastMoveToIndex
 			p.fillType = fillType // Restore original fill type
@@ -453,9 +454,9 @@ func (p *pathImpl) addPathWithMatrix(srcPath SkPath, matrix SkMatrix, mode enums
 		if p == srcImpl {
 			// Copy the path to avoid modifying while iterating
 			tmpPath = &pathImpl{
-				points:          make([]Point, len(srcImpl.points)),
+				points:          make([]models.Point, len(srcImpl.points)),
 				verbs:           make([]enums.PathVerb, len(srcImpl.verbs)),
-				conicWeights:    make([]Scalar, len(srcImpl.conicWeights)),
+				conicWeights:    make([]base.Scalar, len(srcImpl.conicWeights)),
 				fillType:        srcImpl.fillType,
 				lastMoveToIndex: srcImpl.lastMoveToIndex,
 			}
@@ -507,7 +508,7 @@ func (p *pathImpl) addPathWithMatrix(srcPath SkPath, matrix SkMatrix, mode enums
 		verbs := make([]enums.PathVerb, verbCount)
 		srcPath.GetVerbs(verbs)
 		pointCount := srcPath.CountPoints()
-		points := make([]Point, pointCount)
+		points := make([]models.Point, pointCount)
 		srcPath.GetPoints(points)
 
 		firstVerb := true
@@ -549,7 +550,7 @@ func (p *pathImpl) addPathWithMatrix(srcPath SkPath, matrix SkMatrix, mode enums
 				mappedEnd := matrix.MapPoint(points[pointIdx+1])
 				pointIdx += 2
 				// For non-pathImpl, we can't get conic weights, so use default
-				weight := Scalar(1.0)
+				weight := base.Scalar(1.0)
 				p.ConicToPoint(mappedCtrl, mappedEnd, weight)
 				firstVerb = false
 
@@ -629,7 +630,7 @@ func (p *pathImpl) addPathWithMatrix(srcPath SkPath, matrix SkMatrix, mode enums
 }
 
 // Transform applies a matrix transformation to the path.
-func (p *pathImpl) Transform(matrix SkMatrix) {
+func (p *pathImpl) Transform(matrix interfaces.SkMatrix) {
 	// Transform all points
 	for i := range p.points {
 		p.points[i] = matrix.MapPoint(p.points[i])
@@ -639,7 +640,7 @@ func (p *pathImpl) Transform(matrix SkMatrix) {
 }
 
 // Offset translates the path by the specified offset.
-func (p *pathImpl) Offset(dx, dy Scalar) {
+func (p *pathImpl) Offset(dx, dy base.Scalar) {
 	for i := range p.points {
 		p.points[i].X += dx
 		p.points[i].Y += dy
@@ -647,7 +648,7 @@ func (p *pathImpl) Offset(dx, dy Scalar) {
 	p.boundsDirty = true
 }
 
-func (p *pathImpl) trimTrailingMoves() ([]Point, []enums.PathVerb) {
+func (p *pathImpl) trimTrailingMoves() ([]models.Point, []enums.PathVerb) {
 	points := p.points
 	verbs := p.verbs
 
@@ -780,7 +781,7 @@ func (p *pathImpl) getSegmentMasks() uint32 {
 
 func (p *pathImpl) injectMoveToIfNeeded() {
 	if p.lastMoveToIndex < 0 {
-		var x, y Scalar
+		var x, y base.Scalar
 		if len(p.verbs) == 0 {
 			x, y = 0, 0
 		} else {
@@ -814,7 +815,7 @@ func (p *pathImpl) getLastPt() lastPointResult {
 
 func (p *pathImpl) updateBounds() {
 	if len(p.points) == 0 {
-		p.bounds = Rect{Left: 0, Top: 0, Right: 0, Bottom: 0}
+		p.bounds = models.Rect{Left: 0, Top: 0, Right: 0, Bottom: 0}
 		p.boundsDirty = false
 		return
 	}
@@ -839,18 +840,18 @@ func (p *pathImpl) updateBounds() {
 		}
 	}
 
-	p.bounds = Rect{Left: left, Top: top, Right: right, Bottom: bottom}
+	p.bounds = models.Rect{Left: left, Top: top, Right: right, Bottom: bottom}
 	p.boundsDirty = false
 }
 
-func (p *pathImpl) computeTightBounds() Rect {
+func (p *pathImpl) computeTightBounds() models.Rect {
 	if len(p.verbs) == 0 {
-		return Rect{Left: 0, Top: 0, Right: 0, Bottom: 0}
+		return models.Rect{Left: 0, Top: 0, Right: 0, Bottom: 0}
 	}
 
 	// Initialize with the first MoveTo point
 	if len(p.points) == 0 {
-		return Rect{Left: 0, Top: 0, Right: 0, Bottom: 0}
+		return models.Rect{Left: 0, Top: 0, Right: 0, Bottom: 0}
 	}
 
 	left := p.points[0].X
@@ -864,13 +865,13 @@ func (p *pathImpl) computeTightBounds() Rect {
 	lastPointIdx := -1 // Track the last point index for curve start points
 
 	for _, verb := range p.verbs {
-		var extremas []Point
+		var extremas []models.Point
 		var count int
 
 		switch verb {
 		case enums.PathVerbMove:
 			if pointIdx < len(p.points) {
-				extremas = []Point{p.points[pointIdx]}
+				extremas = []models.Point{p.points[pointIdx]}
 				count = 1
 				lastPointIdx = pointIdx
 				pointIdx++
@@ -878,7 +879,7 @@ func (p *pathImpl) computeTightBounds() Rect {
 
 		case enums.PathVerbLine:
 			if pointIdx < len(p.points) {
-				extremas = []Point{p.points[pointIdx]}
+				extremas = []models.Point{p.points[pointIdx]}
 				count = 1
 				lastPointIdx = pointIdx
 				pointIdx++
@@ -887,7 +888,7 @@ func (p *pathImpl) computeTightBounds() Rect {
 		case enums.PathVerbQuad:
 			if pointIdx+1 < len(p.points) && lastPointIdx >= 0 {
 				// Quad needs: start point (lastPointIdx), control (pointIdx), end (pointIdx+1)
-				quadPts := []Point{p.points[lastPointIdx], p.points[pointIdx], p.points[pointIdx+1]}
+				quadPts := []models.Point{p.points[lastPointIdx], p.points[pointIdx], p.points[pointIdx+1]}
 				extremas, count = computeQuadExtremas(quadPts)
 				lastPointIdx = pointIdx + 1
 				pointIdx += 2
@@ -896,7 +897,7 @@ func (p *pathImpl) computeTightBounds() Rect {
 		case enums.PathVerbConic:
 			if pointIdx+1 < len(p.points) && conicWeightIdx < len(p.conicWeights) && lastPointIdx >= 0 {
 				// Conic needs: start point (lastPointIdx), control (pointIdx), end (pointIdx+1)
-				conicPts := []Point{p.points[lastPointIdx], p.points[pointIdx], p.points[pointIdx+1]}
+				conicPts := []models.Point{p.points[lastPointIdx], p.points[pointIdx], p.points[pointIdx+1]}
 				extremas, count = computeConicExtremas(conicPts, p.conicWeights[conicWeightIdx])
 				lastPointIdx = pointIdx + 1
 				pointIdx += 2
@@ -906,7 +907,7 @@ func (p *pathImpl) computeTightBounds() Rect {
 		case enums.PathVerbCubic:
 			if pointIdx+2 < len(p.points) && lastPointIdx >= 0 {
 				// Cubic needs: start point (lastPointIdx), control1 (pointIdx), control2 (pointIdx+1), end (pointIdx+2)
-				cubicPts := []Point{p.points[lastPointIdx], p.points[pointIdx], p.points[pointIdx+1], p.points[pointIdx+2]}
+				cubicPts := []models.Point{p.points[lastPointIdx], p.points[pointIdx], p.points[pointIdx+1], p.points[pointIdx+2]}
 				extremas, count = computeCubicExtremas(cubicPts)
 				lastPointIdx = pointIdx + 2
 				pointIdx += 3
@@ -935,7 +936,7 @@ func (p *pathImpl) computeTightBounds() Rect {
 		}
 	}
 
-	return Rect{Left: left, Top: top, Right: right, Bottom: bottom}
+	return models.Rect{Left: left, Top: top, Right: right, Bottom: bottom}
 }
 
 func (p *pathImpl) addRaw(raw PathRaw) {
@@ -985,7 +986,7 @@ func (p *pathImpl) addRaw(raw PathRaw) {
 func (p *pathImpl) incReserve(extraPtCount, extraVerbCount, extraConicCount int) {
 	// Reserve capacity for points, verbs, and conic weights
 	if cap(p.points) < len(p.points)+extraPtCount {
-		newPoints := make([]Point, len(p.points), len(p.points)+extraPtCount)
+		newPoints := make([]models.Point, len(p.points), len(p.points)+extraPtCount)
 		copy(newPoints, p.points)
 		p.points = newPoints
 	}
@@ -995,7 +996,7 @@ func (p *pathImpl) incReserve(extraPtCount, extraVerbCount, extraConicCount int)
 		p.verbs = newVerbs
 	}
 	if cap(p.conicWeights) < len(p.conicWeights)+extraConicCount {
-		newConicWeights := make([]Scalar, len(p.conicWeights), len(p.conicWeights)+extraConicCount)
+		newConicWeights := make([]base.Scalar, len(p.conicWeights), len(p.conicWeights)+extraConicCount)
 		copy(newConicWeights, p.conicWeights)
 		p.conicWeights = newConicWeights
 	}

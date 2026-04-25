@@ -29,7 +29,7 @@ func TestNewDefaultTypeface(t *testing.T) {
 }
 
 func TestNewTypeface(t *testing.T) {
-	tf := NewTypeface("Arial", FontStyle{Weight: 700, Width: 5, Slant: 0})
+	tf := NewTypeface("Arial", models.FontStyle{Weight: 700, Width: 5, Slant: 0})
 	if tf == nil {
 		t.Fatal("NewTypeface returned nil")
 	}
@@ -45,7 +45,7 @@ func TestNewTypeface(t *testing.T) {
 }
 
 func TestTypefaceItalic(t *testing.T) {
-	tf := NewTypeface("Arial", FontStyle{Weight: 400, Width: 5, Slant: 1})
+	tf := NewTypeface("Arial", models.FontStyle{Weight: 400, Width: 5, Slant: 1})
 	if !tf.IsItalic() {
 		t.Error("Typeface with italic slant should be italic")
 	}
@@ -60,7 +60,7 @@ func TestTypefaceUniqueID(t *testing.T) {
 }
 
 func TestTypefaceWithOptions(t *testing.T) {
-	tf := NewTypefaceWithOptions("Courier", FontStyle{Weight: 400, Width: 5, Slant: 0}, true)
+	tf := NewTypefaceWithOptions("Courier", models.FontStyle{Weight: 400, Width: 5, Slant: 0}, true)
 	if !tf.IsFixedPitch() {
 		t.Error("Typeface created with fixedPitch=true should be fixed pitch")
 	}
@@ -76,7 +76,7 @@ func TestTypefaceStyle(t *testing.T) {
 	// Test all weight values (C++ tests 1-1000)
 	testWeights := []models.FontWeight{100, 200, 300, 400, 500, 600, 700, 800, 900}
 	for _, weight := range testWeights {
-		tf := NewTypeface("Test", FontStyle{Weight: weight, Width: 5, Slant: 0})
+		tf := NewTypeface("Test", models.FontStyle{Weight: weight, Width: 5, Slant: 0})
 		if tf == nil {
 			t.Fatalf("NewTypeface returned nil for weight %d", weight)
 		}
@@ -96,7 +96,7 @@ func TestTypefaceStyle(t *testing.T) {
 	// Test width values (1-9 in C++)
 	testWidths := []models.FontWidth{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	for _, width := range testWidths {
-		tf := NewTypeface("Test", FontStyle{Weight: 400, Width: width, Slant: 0})
+		tf := NewTypeface("Test", models.FontStyle{Weight: 400, Width: width, Slant: 0})
 		if tf == nil {
 			t.Fatalf("NewTypeface returned nil for width %d", width)
 		}
@@ -144,7 +144,7 @@ func TestTypefaceStyleSlants(t *testing.T) {
 	}
 
 	for _, tc := range slants {
-		tf := NewTypeface("Test", FontStyle{Weight: 400, Width: 5, Slant: tc.slant})
+		tf := NewTypeface("Test", models.FontStyle{Weight: 400, Width: 5, Slant: tc.slant})
 		if tf == nil {
 			t.Fatalf("NewTypeface returned nil for slant %d", tc.slant)
 		}
@@ -160,7 +160,7 @@ func TestTypefaceStyleSlants(t *testing.T) {
 // Ported from: TypefaceTest.cpp TypefaceStyle (comprehensive combinations)
 func TestTypefaceStyleCombinations(t *testing.T) {
 	// Bold + Italic
-	tf := NewTypeface("Test", FontStyle{Weight: 700, Width: 5, Slant: 1})
+	tf := NewTypeface("Test", models.FontStyle{Weight: 700, Width: 5, Slant: 1})
 	if tf == nil {
 		t.Fatal("NewTypeface returned nil")
 	}
@@ -172,7 +172,7 @@ func TestTypefaceStyleCombinations(t *testing.T) {
 	}
 
 	// Neither bold nor italic
-	tf = NewTypeface("Test", FontStyle{Weight: 400, Width: 5, Slant: 0})
+	tf = NewTypeface("Test", models.FontStyle{Weight: 400, Width: 5, Slant: 0})
 	if tf.IsBold() {
 		t.Error("Weight 400 should not be bold")
 	}
@@ -181,12 +181,12 @@ func TestTypefaceStyleCombinations(t *testing.T) {
 	}
 
 	// Extreme weights
-	tfThin := NewTypeface("Test", FontStyle{Weight: 100, Width: 5, Slant: 0})
+	tfThin := NewTypeface("Test", models.FontStyle{Weight: 100, Width: 5, Slant: 0})
 	if tfThin.IsBold() {
 		t.Error("Weight 100 should not be bold")
 	}
 
-	tfBlack := NewTypeface("Test", FontStyle{Weight: 900, Width: 5, Slant: 0})
+	tfBlack := NewTypeface("Test", models.FontStyle{Weight: 900, Width: 5, Slant: 0})
 	if !tfBlack.IsBold() {
 		t.Error("Weight 900 should be bold")
 	}

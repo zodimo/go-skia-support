@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
@@ -16,17 +17,17 @@ const PaintJoinCount = enums.PaintJoinLast + 1
 const BlendModeCount = int(enums.BlendModeLast) + 1
 
 // PaintDefaultsMiterLimit is the default miter limit value
-const PaintDefaultsMiterLimit Scalar = 4.0
+const PaintDefaultsMiterLimit base.Scalar = 4.0
 
 // Paint represents a paint object that specifies how geometry is drawn
 type Paint struct {
 	// Effect and filter objects
-	PathEffect  PathEffect  // sk_sp<SkPathEffect>
-	Shader      Shader      // sk_sp<SkShader>
-	MaskFilter  MaskFilter  // sk_sp<SkMaskFilter>
-	ColorFilter ColorFilter // sk_sp<SkColorFilter>
-	ImageFilter ImageFilter // sk_sp<SkImageFilter>
-	Blender     Blender     // sk_sp<SkBlender>
+	PathEffect  interfaces.PathEffect  // sk_sp<SkPathEffect>
+	Shader      interfaces.Shader      // sk_sp<SkShader>
+	MaskFilter  interfaces.MaskFilter  // sk_sp<SkMaskFilter>
+	ColorFilter interfaces.ColorFilter // sk_sp<SkColorFilter>
+	ImageFilter interfaces.ImageFilter // sk_sp<SkImageFilter>
+	Blender     interfaces.Blender     // sk_sp<SkBlender>
 
 	// Blend mode (stored when SetBlendMode is called)
 	// If Blender is nil, this represents the blend mode (defaults to BlendModeSrcOver)
@@ -34,9 +35,9 @@ type Paint struct {
 	blendMode *enums.BlendMode // nil means use default (SrcOver)
 
 	// Color and stroke properties
-	Color4f    Color4f // RGBA color (unpremultiplied)
-	Width      Scalar  // stroke width
-	MiterLimit Scalar  // miter limit
+	Color4f    models.Color4f // RGBA color (unpremultiplied)
+	Width      base.Scalar    // stroke width
+	MiterLimit base.Scalar    // miter limit
 
 	// Bitfields for flags and enums
 	Bitfields PaintBitfields
@@ -51,7 +52,7 @@ func NewPaint() *Paint {
 		ColorFilter: nil,
 		ImageFilter: nil,
 		Blender:     nil,
-		Color4f: Color4f{
+		Color4f: models.Color4f{
 			R: 0,
 			G: 0,
 			B: 0,
@@ -70,7 +71,7 @@ func NewPaint() *Paint {
 }
 
 // NewPaintWithColor creates a new Paint with the specified color
-func NewPaintWithColor(color Color4f) *Paint {
+func NewPaintWithColor(color models.Color4f) *Paint {
 	p := NewPaint()
 	p.SetColor(color)
 	return p
@@ -121,7 +122,7 @@ func (p *Paint) Equals(other interfaces.SkPaint) bool {
 
 // SetColor sets the paint color
 // For now, color space transformation is deferred
-func (p *Paint) SetColor(color Color4f) {
+func (p *Paint) SetColor(color models.Color4f) {
 	p.Color4f = color.PinAlpha()
 	// TODO: Apply color space transformation if colorSpace provided
 }
@@ -133,11 +134,11 @@ func (p *Paint) SetColorInt(color uint32) {
 
 // SetARGB sets the color from ARGB components
 func (p *Paint) SetARGB(a, r, g, b uint8) {
-	p.SetColor(Color4f{
-		R: Scalar(r) / 255.0,
-		G: Scalar(g) / 255.0,
-		B: Scalar(b) / 255.0,
-		A: Scalar(a) / 255.0,
+	p.SetColor(models.Color4f{
+		R: base.Scalar(r) / 255.0,
+		G: base.Scalar(g) / 255.0,
+		B: base.Scalar(b) / 255.0,
+		A: base.Scalar(a) / 255.0,
 	})
 }
 
@@ -153,7 +154,7 @@ func (p *Paint) GetColorInt() uint32 {
 }
 
 // GetAlphaf returns the alpha component as a float (0.0 to 1.0)
-func (p *Paint) GetAlphaf() Scalar {
+func (p *Paint) GetAlphaf() base.Scalar {
 	return p.Color4f.A
 }
 
@@ -165,14 +166,14 @@ func (p *Paint) GetAlpha() uint8 {
 }
 
 // SetAlphaf sets the alpha component, clamping to [0, 1]
-func (p *Paint) SetAlphaf(a Scalar) {
+func (p *Paint) SetAlphaf(a base.Scalar) {
 	p.Color4f.A = scalarPin(a, 0.0, 1.0)
 }
 
 // SetAlpha sets the alpha component from a uint8 (0 to 255)
 // This is equivalent to SkPaint::setAlpha() in C++
 func (p *Paint) SetAlpha(a uint8) {
-	p.SetAlphaf(Scalar(a) / 255.0)
+	p.SetAlphaf(base.Scalar(a) / 255.0)
 }
 
 // GetStyle returns the current style
@@ -197,12 +198,12 @@ func (p *Paint) SetStroke(isStroke bool) {
 }
 
 // GetStrokeWidth returns the stroke width
-func (p *Paint) GetStrokeWidth() Scalar {
+func (p *Paint) GetStrokeWidth() base.Scalar {
 	return p.Width
 }
 
 // SetStrokeWidth sets the stroke width (must be >= 0)
-func (p *Paint) SetStrokeWidth(width Scalar) {
+func (p *Paint) SetStrokeWidth(width base.Scalar) {
 	if width < 0 {
 		width = 0
 	}
@@ -210,12 +211,12 @@ func (p *Paint) SetStrokeWidth(width Scalar) {
 }
 
 // GetStrokeMiter returns the miter limit
-func (p *Paint) GetStrokeMiter() Scalar {
+func (p *Paint) GetStrokeMiter() base.Scalar {
 	return p.MiterLimit
 }
 
 // SetStrokeMiter sets the miter limit (must be >= 0)
-func (p *Paint) SetStrokeMiter(limit Scalar) {
+func (p *Paint) SetStrokeMiter(limit base.Scalar) {
 	if limit < 0 {
 		limit = 0
 	}
@@ -267,57 +268,57 @@ func (p *Paint) SetDither(dither bool) {
 }
 
 // SetShader sets the shader
-func (p *Paint) SetShader(shader Shader) {
+func (p *Paint) SetShader(shader interfaces.Shader) {
 	p.Shader = shader
 }
 
 // GetShader returns the current shader
-func (p *Paint) GetShader() Shader {
+func (p *Paint) GetShader() interfaces.Shader {
 	return p.Shader
 }
 
 // SetColorFilter sets the color filter
-func (p *Paint) SetColorFilter(filter ColorFilter) {
+func (p *Paint) SetColorFilter(filter interfaces.ColorFilter) {
 	p.ColorFilter = filter
 }
 
 // GetColorFilter returns the current color filter
-func (p *Paint) GetColorFilter() ColorFilter {
+func (p *Paint) GetColorFilter() interfaces.ColorFilter {
 	return p.ColorFilter
 }
 
 // SetPathEffect sets the path effect
-func (p *Paint) SetPathEffect(effect PathEffect) {
+func (p *Paint) SetPathEffect(effect interfaces.PathEffect) {
 	p.PathEffect = effect
 }
 
 // GetPathEffect returns the current path effect
-func (p *Paint) GetPathEffect() PathEffect {
+func (p *Paint) GetPathEffect() interfaces.PathEffect {
 	return p.PathEffect
 }
 
 // SetMaskFilter sets the mask filter
-func (p *Paint) SetMaskFilter(filter MaskFilter) {
+func (p *Paint) SetMaskFilter(filter interfaces.MaskFilter) {
 	p.MaskFilter = filter
 }
 
 // GetMaskFilter returns the current mask filter
-func (p *Paint) GetMaskFilter() MaskFilter {
+func (p *Paint) GetMaskFilter() interfaces.MaskFilter {
 	return p.MaskFilter
 }
 
 // SetImageFilter sets the image filter
-func (p *Paint) SetImageFilter(filter ImageFilter) {
+func (p *Paint) SetImageFilter(filter interfaces.ImageFilter) {
 	p.ImageFilter = filter
 }
 
 // GetImageFilter returns the current image filter
-func (p *Paint) GetImageFilter() ImageFilter {
+func (p *Paint) GetImageFilter() interfaces.ImageFilter {
 	return p.ImageFilter
 }
 
 // SetBlender sets the blender
-func (p *Paint) SetBlender(blender Blender) {
+func (p *Paint) SetBlender(blender interfaces.Blender) {
 	p.Blender = blender
 	// When a custom blender is set, clear the stored blend mode
 	// since the blender takes precedence
@@ -327,7 +328,7 @@ func (p *Paint) SetBlender(blender Blender) {
 }
 
 // GetBlender returns the current blender
-func (p *Paint) GetBlender() Blender {
+func (p *Paint) GetBlender() interfaces.Blender {
 	return p.Blender
 }
 
@@ -415,14 +416,14 @@ func (p *Paint) CanComputeFastBounds() bool {
 // then calling getInflationRadius() on it.
 // If matrixScale is provided and > 0, it will be used for hairline strokes (width == 0).
 // Otherwise, hairlines default to 1.0.
-func (p *Paint) GetInflationRadius(style enums.PaintStyle, matrixScale ...Scalar) Scalar {
-	var strokeWidth Scalar
+func (p *Paint) GetInflationRadius(style enums.PaintStyle, matrixScale ...base.Scalar) base.Scalar {
+	var strokeWidth base.Scalar
 	if style == enums.PaintStyleFill {
 		strokeWidth = -1.0 // negative indicates fill
 	} else {
 		strokeWidth = p.Width
 	}
-	var scale Scalar = 0 // 0 means not provided
+	var scale base.Scalar = 0 // 0 means not provided
 	if len(matrixScale) > 0 && matrixScale[0] > 0 {
 		scale = matrixScale[0]
 	}
@@ -432,7 +433,7 @@ func (p *Paint) GetInflationRadius(style enums.PaintStyle, matrixScale ...Scalar
 // ComputeFastBounds computes fast bounds for geometry with paint effects.
 // The original bounds are adjusted to account for stroke, path effects, mask filters, and image filters.
 // The storage parameter must not be nil and will be used to store the result.
-func (p *Paint) ComputeFastBounds(orig Rect, storage *Rect) Rect {
+func (p *Paint) ComputeFastBounds(orig models.Rect, storage *models.Rect) models.Rect {
 	if storage == nil {
 		panic("storage must not be nil")
 	}
@@ -454,14 +455,14 @@ func (p *Paint) ComputeFastBounds(orig Rect, storage *Rect) Rect {
 // ComputeFastStrokeBounds computes fast bounds for geometry with paint effects,
 // using stroke style regardless of the current paint style.
 // This is equivalent to SkPaint::computeFastStrokeBounds() in C++
-func (p *Paint) ComputeFastStrokeBounds(orig Rect, storage *Rect) Rect {
+func (p *Paint) ComputeFastStrokeBounds(orig models.Rect, storage *models.Rect) models.Rect {
 	return p.DoComputeFastBounds(orig, storage, enums.PaintStyleStroke)
 }
 
 // DoComputeFastBounds is an internal method to compute fast bounds with style override.
 // It applies PathEffect bounds if present, computes inflation radius for stroke,
 // applies MaskFilter bounds if present, and applies ImageFilter bounds if present.
-func (p *Paint) DoComputeFastBounds(origSrc Rect, storage *Rect, style enums.PaintStyle) Rect {
+func (p *Paint) DoComputeFastBounds(origSrc models.Rect, storage *models.Rect, style enums.PaintStyle) models.Rect {
 	if storage == nil {
 		panic("storage must not be nil")
 	}

@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
@@ -8,26 +9,26 @@ import (
 type SkPaint interface {
 	AsBlendMode() (enums.BlendMode, bool)
 	CanComputeFastBounds() bool
-	ComputeFastBounds(orig Rect, storage *Rect) Rect
-	ComputeFastStrokeBounds(orig Rect, storage *Rect) Rect
-	DoComputeFastBounds(origSrc Rect, storage *Rect, style enums.PaintStyle) Rect
+	ComputeFastBounds(orig models.Rect, storage *models.Rect) models.Rect
+	ComputeFastStrokeBounds(orig models.Rect, storage *models.Rect) models.Rect
+	DoComputeFastBounds(origSrc models.Rect, storage *models.Rect, style enums.PaintStyle) models.Rect
 	Equals(other SkPaint) bool
 	GetAlpha() uint8
-	GetAlphaf() Scalar
+	GetAlphaf() base.Scalar
 	GetBlendModeOr(defaultMode enums.BlendMode) enums.BlendMode
 	GetBlender() Blender
 	GetColor() models.Color4f
 	GetColorFilter() ColorFilter
 	GetColorInt() uint32
 	GetImageFilter() ImageFilter
-	GetInflationRadius(style enums.PaintStyle, matrixScale ...Scalar) Scalar
+	GetInflationRadius(style enums.PaintStyle, matrixScale ...base.Scalar) base.Scalar
 	GetMaskFilter() MaskFilter
 	GetPathEffect() PathEffect
 	GetShader() Shader
 	GetStrokeCap() enums.PaintCap
 	GetStrokeJoin() enums.PaintJoin
-	GetStrokeMiter() Scalar
-	GetStrokeWidth() Scalar
+	GetStrokeMiter() base.Scalar
+	GetStrokeWidth() base.Scalar
 	GetStyle() enums.PaintStyle
 	IsAntiAlias() bool
 	IsDither() bool
@@ -36,7 +37,7 @@ type SkPaint interface {
 	Reset()
 	SetARGB(a uint8, r uint8, g uint8, b uint8)
 	SetAlpha(a uint8)
-	SetAlphaf(a Scalar)
+	SetAlphaf(a base.Scalar)
 	SetAntiAlias(aa bool)
 	SetBlendMode(mode enums.BlendMode)
 	SetBlender(blender Blender)
@@ -51,8 +52,8 @@ type SkPaint interface {
 	SetStroke(isStroke bool)
 	SetStrokeCap(cap enums.PaintCap)
 	SetStrokeJoin(join enums.PaintJoin)
-	SetStrokeMiter(limit Scalar)
-	SetStrokeWidth(width Scalar)
+	SetStrokeMiter(limit base.Scalar)
+	SetStrokeWidth(width base.Scalar)
 	SetStyle(style enums.PaintStyle)
 }
 
@@ -63,7 +64,7 @@ type PathEffect interface {
 	// ComputeFastBounds computes fast bounds for the path effect.
 	// If bounds is nil, returns true if fast bounds computation is possible.
 	// If bounds is not nil, modifies bounds in place and returns true if successful.
-	ComputeFastBounds(bounds *Rect) bool
+	ComputeFastBounds(bounds *models.Rect) bool
 }
 
 // Shader specifies the premultiplied source color(s) for what is being drawn.
@@ -158,7 +159,7 @@ type Shader interface {
 type MaskFilter interface {
 	// ComputeFastBounds computes fast bounds for the mask filter.
 	// Modifies storage in place with the adjusted bounds.
-	ComputeFastBounds(bounds Rect, storage *Rect)
+	ComputeFastBounds(bounds models.Rect, storage *models.Rect)
 }
 
 // ColorFilter is the interface for objects that modify colors in the drawing pipeline.
@@ -178,7 +179,7 @@ type ImageFilter interface {
 	CanComputeFastBounds() bool
 	// ComputeFastBounds computes fast bounds for the image filter.
 	// Returns the adjusted bounds.
-	ComputeFastBounds(bounds Rect) Rect
+	ComputeFastBounds(bounds models.Rect) models.Rect
 }
 
 // Blender is the interface for objects that specify how source and destination colors

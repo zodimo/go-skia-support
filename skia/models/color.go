@@ -1,8 +1,10 @@
 package models
 
+import "github.com/zodimo/go-skia-support/skia/base"
+
 // Color4f represents an RGBA color with four float components (unpremultiplied)
 type Color4f struct {
-	R, G, B, A Scalar
+	R, G, B, A base.Scalar
 }
 
 // pinAlpha clamps alpha to [0, 1] range
@@ -16,8 +18,8 @@ func (c Color4f) PinAlpha() Color4f {
 }
 
 // vec returns a pointer to the components array [R, G, B, A]
-func (c *Color4f) Vec() *[4]Scalar {
-	return &[4]Scalar{c.R, c.G, c.B, c.A}
+func (c *Color4f) Vec() *[4]base.Scalar {
+	return &[4]base.Scalar{c.R, c.G, c.B, c.A}
 }
 
 // ToSkColor converts Color4f to uint32 SkColor (ARGB format)
@@ -35,7 +37,7 @@ func (c Color4f) ToSkColor() uint32 {
 // Local helper, cannot use helpers.ScalarPin because it would create a circular dependency
 // scalarPin clamps x between lo and hi, inclusively
 // Similar to SkTPin in C++
-func scalarPin(x, lo, hi Scalar) Scalar {
+func scalarPin(x, lo, hi base.Scalar) base.Scalar {
 	if x < lo {
 		return lo
 	}

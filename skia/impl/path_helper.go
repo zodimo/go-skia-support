@@ -5,6 +5,8 @@ import (
 
 	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 func pathFirstDirectionToConvexity(dir enums.PathFirstDirection) enums.PathConvexity {
@@ -20,7 +22,7 @@ func pathFirstDirectionToConvexity(dir enums.PathFirstDirection) enums.PathConve
 	}
 }
 
-// ptsInVerb returns the number of points (excluding start point) for each verb
+// ptsInVerb returns the number of models.Points (excluding start models.Point) for each verb
 func ptsInVerb(verb enums.PathVerb) int {
 	switch verb {
 	case enums.PathVerbMove:
@@ -41,7 +43,7 @@ func ptsInVerb(verb enums.PathVerb) int {
 }
 
 // validUnitDivide performs division and ensures result is in [0, 1)
-func validUnitDivide(numer, denom Scalar) (Scalar, bool) {
+func validUnitDivide(numer, denom base.Scalar) (base.Scalar, bool) {
 	if numer < 0 {
 		numer = -numer
 		denom = -denom
@@ -65,7 +67,7 @@ func validUnitDivide(numer, denom Scalar) (Scalar, bool) {
 
 // findUnitQuadRoots finds roots of quadratic equation At^2 + Bt + C = 0 in [0, 1)
 // Returns the number of valid roots found
-func findUnitQuadRoots(A, B, C Scalar, roots []Scalar) int {
+func findUnitQuadRoots(A, B, C base.Scalar, roots []base.Scalar) int {
 	if A == 0 {
 		if t, ok := validUnitDivide(-C, B); ok {
 			roots[0] = t
@@ -80,12 +82,12 @@ func findUnitQuadRoots(A, B, C Scalar, roots []Scalar) int {
 		return 0
 	}
 	dr = math.Sqrt(dr)
-	R := Scalar(dr)
+	R := base.Scalar(dr)
 	if math.IsInf(float64(R), 0) || math.IsNaN(float64(R)) {
 		return 0
 	}
 
-	var Q Scalar
+	var Q base.Scalar
 	if B < 0 {
 		Q = -(B - R) / 2
 	} else {
@@ -119,7 +121,7 @@ func findUnitQuadRoots(A, B, C Scalar, roots []Scalar) int {
 // Quadratic: P(t) = (1-t)^2*P0 + 2*(1-t)*t*P1 + t^2*P2
 // Derivative: 2*(P1-P0) + 2*(P2-2*P1+P0)*t = 0
 // Solving: t = (P0-P1) / (P0-2*P1+P2)
-func findQuadExtrema(a, b, c Scalar, tValue []Scalar) int {
+func findQuadExtrema(a, b, c base.Scalar, tValue []base.Scalar) int {
 	// At + B == 0, where A = a - b - b + c, B = a - b
 	// t = -B / A = (b - a) / (a - 2*b + c)
 	if t, ok := validUnitDivide(a-b, a-b-b+c); ok {
@@ -131,26 +133,26 @@ func findQuadExtrema(a, b, c Scalar, tValue []Scalar) int {
 
 // evalQuadAt evaluates a quadratic curve at parameter t
 // P(t) = (1-t)^2*P0 + 2*(1-t)*t*P1 + t^2*P2
-func evalQuadAt(src []Point, t Scalar) Point {
+func evalQuadAt(src []models.Point, t base.Scalar) models.Point {
 	// Using Bernstein basis: (1-t)^2, 2*(1-t)*t, t^2
 	mt := 1 - t
 	mt2 := mt * mt
 	t2 := t * t
 	mt2t := 2 * mt * t
 
-	return Point{
+	return models.Point{
 		X: mt2*src[0].X + mt2t*src[1].X + t2*src[2].X,
 		Y: mt2*src[0].Y + mt2t*src[1].Y + t2*src[2].Y,
 	}
 }
 
 // computeQuadExtremas computes extrema points for a quadratic curve
-func computeQuadExtremas(src []Point) ([]Point, int) {
+func computeQuadExtremas(src []models.Point) ([]models.Point, int) {
 	if len(src) < 3 {
 		return nil, 0
 	}
 
-	ts := make([]Scalar, 2)
+	ts := make([]base.Scalar, 2)
 	n := findQuadExtrema(src[0].X, src[1].X, src[2].X, ts)
 	n += findQuadExtrema(src[0].Y, src[1].Y, src[2].Y, ts[n:])
 
@@ -158,7 +160,7 @@ func computeQuadExtremas(src []Point) ([]Point, int) {
 		n = 2
 	}
 
-	extremas := make([]Point, n+1)
+	extremas := make([]models.Point, n+1)
 	for i := 0; i < n; i++ {
 		extremas[i] = evalQuadAt(src, ts[i])
 	}
@@ -170,7 +172,7 @@ func computeQuadExtremas(src []Point) ([]Point, int) {
 // findCubicExtrema finds t values where cubic curve has extrema
 // Cubic: P(t) = (1-t)^3*P0 + 3*(1-t)^2*t*P1 + 3*(1-t)*t^2*P2 + t^3*P3
 // Derivative: 3*(P1-P0) + 6*(P2-2*P1+P0)*t + 3*(P3-3*P2+3*P1-P0)*t^2 = 0
-func findCubicExtrema(a, b, c, d Scalar, tValues []Scalar) int {
+func findCubicExtrema(a, b, c, d base.Scalar, tValues []base.Scalar) int {
 	// A = d - a + 3*(b - c)
 	// B = 2*(a - b - b + c) = 2*(a - 2*b + c)
 	// C = b - a
@@ -183,7 +185,7 @@ func findCubicExtrema(a, b, c, d Scalar, tValues []Scalar) int {
 
 // evalCubicAt evaluates a cubic curve at parameter t
 // P(t) = (1-t)^3*P0 + 3*(1-t)^2*t*P1 + 3*(1-t)*t^2*P2 + t^3*P3
-func evalCubicAt(src []Point, t Scalar) Point {
+func evalCubicAt(src []models.Point, t base.Scalar) models.Point {
 	// Using Bernstein basis
 	mt := 1 - t
 	mt2 := mt * mt
@@ -191,19 +193,19 @@ func evalCubicAt(src []Point, t Scalar) Point {
 	t2 := t * t
 	t3 := t2 * t
 
-	return Point{
+	return models.Point{
 		X: mt3*src[0].X + 3*mt2*t*src[1].X + 3*mt*t2*src[2].X + t3*src[3].X,
 		Y: mt3*src[0].Y + 3*mt2*t*src[1].Y + 3*mt*t2*src[2].Y + t3*src[3].Y,
 	}
 }
 
 // computeCubicExtremas computes extrema points for a cubic curve
-func computeCubicExtremas(src []Point) ([]Point, int) {
+func computeCubicExtremas(src []models.Point) ([]models.Point, int) {
 	if len(src) < 4 {
 		return nil, 0
 	}
 
-	ts := make([]Scalar, 4)
+	ts := make([]base.Scalar, 4)
 	n := findCubicExtrema(src[0].X, src[1].X, src[2].X, src[3].X, ts)
 	n += findCubicExtrema(src[0].Y, src[1].Y, src[2].Y, src[3].Y, ts[n:])
 
@@ -211,7 +213,7 @@ func computeCubicExtremas(src []Point) ([]Point, int) {
 		n = 4
 	}
 
-	extremas := make([]Point, n+1)
+	extremas := make([]models.Point, n+1)
 	for i := 0; i < n; i++ {
 		extremas[i] = evalCubicAt(src, ts[i])
 	}
@@ -224,11 +226,11 @@ func computeCubicExtremas(src []Point) ([]Point, int) {
 // Conic: P(t) = [(1-t)^2*P0 + 2*w*(1-t)*t*P1 + t^2*P2] / [(1-t)^2 + 2*w*(1-t)*t + t^2]
 // This computes the coefficients for the derivative numerator: coeff[0]*t^2 + coeff[1]*t + coeff[2]
 // src is a 3-element array representing [P0_coord, P1_coord, P2_coord] for a single coordinate (X or Y)
-func conicDerivCoeff(src [3]Scalar, w Scalar) [3]Scalar {
+func conicDerivCoeff(src [3]base.Scalar, w base.Scalar) [3]base.Scalar {
 	P20 := src[2] - src[0]
 	P10 := src[1] - src[0]
 	wP10 := w * P10
-	return [3]Scalar{
+	return [3]base.Scalar{
 		w*P20 - P20,  // coeff[0] for t^2
 		P20 - 2*wP10, // coeff[1] for t^1
 		wP10,         // coeff[2] for t^0
@@ -236,22 +238,22 @@ func conicDerivCoeff(src [3]Scalar, w Scalar) [3]Scalar {
 }
 
 // conicFindExtrema finds extrema for conic curve (X or Y component)
-func conicFindExtrema(src []Point, w Scalar, isX bool) (Scalar, bool) {
+func conicFindExtrema(src []models.Point, w base.Scalar, isX bool) (base.Scalar, bool) {
 	if len(src) < 3 {
 		return 0, false
 	}
 
 	// Extract the coordinate values for the three points
-	var coordSrc [3]Scalar
+	var coordSrc [3]base.Scalar
 	if isX {
-		coordSrc = [3]Scalar{src[0].X, src[1].X, src[2].X}
+		coordSrc = [3]base.Scalar{src[0].X, src[1].X, src[2].X}
 	} else {
-		coordSrc = [3]Scalar{src[0].Y, src[1].Y, src[2].Y}
+		coordSrc = [3]base.Scalar{src[0].Y, src[1].Y, src[2].Y}
 	}
 
 	coeff := conicDerivCoeff(coordSrc, w)
 
-	tValues := make([]Scalar, 2)
+	tValues := make([]base.Scalar, 2)
 	roots := findUnitQuadRoots(coeff[0], coeff[1], coeff[2], tValues)
 	if roots == 1 {
 		return tValues[0], true
@@ -261,7 +263,7 @@ func conicFindExtrema(src []Point, w Scalar, isX bool) (Scalar, bool) {
 
 // evalConicAt evaluates a conic curve at parameter t
 // P(t) = [(1-t)^2*P0 + 2*w*(1-t)*t*P1 + t^2*P2] / [(1-t)^2 + 2*w*(1-t)*t + t^2]
-func evalConicAt(src []Point, w Scalar, t Scalar) Point {
+func evalConicAt(src []models.Point, w base.Scalar, t base.Scalar) models.Point {
 	mt := 1 - t
 	mt2 := mt * mt
 	t2 := t * t
@@ -275,19 +277,19 @@ func evalConicAt(src []Point, w Scalar, t Scalar) Point {
 		return src[2] // Fallback to end point
 	}
 
-	return Point{
+	return models.Point{
 		X: numerX / denom,
 		Y: numerY / denom,
 	}
 }
 
 // computeConicExtremas computes extrema points for a conic curve
-func computeConicExtremas(src []Point, w Scalar) ([]Point, int) {
+func computeConicExtremas(src []models.Point, w base.Scalar) ([]models.Point, int) {
 	if len(src) < 3 {
 		return nil, 0
 	}
 
-	ts := make([]Scalar, 2)
+	ts := make([]base.Scalar, 2)
 	n := 0
 
 	if t, ok := conicFindExtrema(src, w, true); ok {
@@ -313,7 +315,7 @@ func computeConicExtremas(src []Point, w Scalar) ([]Point, int) {
 		n = 2
 	}
 
-	extremas := make([]Point, n+1)
+	extremas := make([]models.Point, n+1)
 	for i := 0; i < n; i++ {
 		extremas[i] = evalConicAt(src, w, ts[i])
 	}
@@ -336,7 +338,7 @@ func PathConvexityIsConvex(cv enums.PathConvexity) bool {
 	return cv == enums.PathConvexityConvexCW || cv == enums.PathConvexityConvexCCW || cv == enums.PathConvexityConvexDegenerate
 }
 
-func IsFinite(f Scalar) bool {
+func IsFinite(f base.Scalar) bool {
 	return !math.IsNaN(float64(f)) && !math.IsInf(float64(f), 0)
 }
 
@@ -349,7 +351,7 @@ var PathVerbs = []enums.PathVerb{
 	enums.PathVerbClose,
 }
 
-func RectPathRaw(rect Rect, dir enums.PathDirection, startIndex uint) PathRaw {
+func RectPathRaw(rect models.Rect, dir enums.PathDirection, startIndex uint) PathRaw {
 	// Keep startIndex legal (0-3)
 	startIndex = startIndex % 4
 
@@ -358,7 +360,7 @@ func RectPathRaw(rect Rect, dir enums.PathDirection, startIndex uint) PathRaw {
 
 	// Rectangle path: Move, Line, Line, Line, Close
 	// 4 points total (one for each corner)
-	points := make([]Point, 4)
+	points := make([]models.Point, 4)
 	points[0] = iter.current()
 	points[1] = iter.next()
 	points[2] = iter.next()
@@ -372,12 +374,12 @@ func RectPathRaw(rect Rect, dir enums.PathDirection, startIndex uint) PathRaw {
 		enums.PathVerbLine,
 		enums.PathVerbClose,
 	}
-	// Point indices: Move uses point 0, each Line uses the next point
-	// For Move: uses points[0]
-	// For Line 1: uses points[1] (which is PointIndices[1] = 0, then +1 = 1)
-	// For Line 2: uses points[2] (which is PointIndices[2] = 1, then +1 = 2)
-	// For Line 3: uses points[3] (which is PointIndices[3] = 2, then +1 = 3)
-	// For Close: no point needed
+	// Point indices: Move uses models.Point 0, each Line uses the next models.Point
+	// For Move: uses models.Points[0]
+	// For Line 1: uses models.Points[1] (which is models.PointIndices[1] = 0, then +1 = 1)
+	// For Line 2: uses models.Points[2] (which is models.PointIndices[2] = 1, then +1 = 2)
+	// For Line 3: uses models.Points[3] (which is models.PointIndices[3] = 2, then +1 = 3)
+	// For Close: no models.Point needed
 	pointIndices := []int{0, 0, 1, 2, -1} // -1 for Close (not used)
 
 	return PathRaw{
@@ -389,7 +391,7 @@ func RectPathRaw(rect Rect, dir enums.PathDirection, startIndex uint) PathRaw {
 	}
 }
 
-func OvalPathRaw(rect Rect, dir enums.PathDirection, startIndex uint) PathRaw {
+func OvalPathRaw(rect models.Rect, dir enums.PathDirection, startIndex uint) PathRaw {
 	// Keep startIndex legal (0-3)
 	startIndex = startIndex % 4
 
@@ -404,8 +406,8 @@ func OvalPathRaw(rect Rect, dir enums.PathDirection, startIndex uint) PathRaw {
 	rectIter := newRectPointIterator(rect, dir, rectStartIndex)
 
 	// Oval path: Move, Conic, Conic, Conic, Conic, Close
-	// 9 points total: 1 start point + 4 conics (each needs 2 points: control + end)
-	points := make([]Point, 9)
+	// 9 models.Points total: 1 start models.Point + 4 conics (each needs 2 models.Points: control + end)
+	points := make([]models.Point, 9)
 	points[0] = ovalIter.current()
 	for i := 0; i < 4; i++ {
 		points[i*2+1] = rectIter.next() // control point (rectangle corner)
@@ -423,20 +425,20 @@ func OvalPathRaw(rect Rect, dir enums.PathDirection, startIndex uint) PathRaw {
 	}
 
 	// Conic weights: all 4 use sqrt(2)/2 for quarter-circle approximation
-	conicWeights := []Scalar{
+	conicWeights := []base.Scalar{
 		base.ScalarRoot2Over2,
 		base.ScalarRoot2Over2,
 		base.ScalarRoot2Over2,
 		base.ScalarRoot2Over2,
 	}
 
-	// Point indices: Move uses point 0, each Conic uses control point index
-	// For Move: uses points[0]
-	// For Conic 0: uses points[1] (control) and points[2] (end)
-	// For Conic 1: uses points[3] (control) and points[4] (end)
-	// For Conic 2: uses points[5] (control) and points[6] (end)
-	// For Conic 3: uses points[7] (control) and points[8] (end)
-	// For Close: no point needed
+	// Point indices: Move uses models.Point 0, each Conic uses control models.Point index
+	// For Move: uses models.Points[0]
+	// For Conic 0: uses models.Points[1] (control) and models.Points[2] (end)
+	// For Conic 1: uses models.Points[3] (control) and models.Points[4] (end)
+	// For Conic 2: uses models.Points[5] (control) and models.Points[6] (end)
+	// For Conic 3: uses models.Points[7] (control) and models.Points[8] (end)
+	// For Close: no models.Point needed
 	pointIndices := []int{0, 1, 3, 5, 7, -1} // -1 for Close (not used)
 
 	// Conic index: maps verb index to conic weight index
@@ -453,7 +455,7 @@ func OvalPathRaw(rect Rect, dir enums.PathDirection, startIndex uint) PathRaw {
 	}
 }
 
-func RRectPathRaw(rrect RRect, dir enums.PathDirection, startIndex uint) PathRaw {
+func RRectPathRaw(rrect models.RRect, dir enums.PathDirection, startIndex uint) PathRaw {
 	// Keep startIndex legal (0-7)
 	startIndex = startIndex % 8
 
@@ -478,12 +480,12 @@ func RRectPathRaw(rrect RRect, dir enums.PathDirection, startIndex uint) PathRaw
 	rectIter := newRectPointIterator(rrect.Bounds(), dir, uint(rectStartIndex))
 
 	// Build points array
-	points := make([]Point, npoints)
+	points := make([]models.Point, npoints)
 	points[0] = rrectIter.current()
 
 	if startsWithConic {
 		// Pattern: Conic, Line, Conic, Line, Conic, Line, Conic, Close
-		// Points: start, (conic_ctrl, conic_end, line), (conic_ctrl, conic_end, line), ...
+		// points: start, (conic_ctrl, conic_end, line), (conic_ctrl, conic_end, line), ...
 		for i := 0; i < 3; i++ {
 			// Conic points
 			points[i*3+1] = rectIter.next()  // control point (rectangle corner)
@@ -497,7 +499,7 @@ func RRectPathRaw(rrect RRect, dir enums.PathDirection, startIndex uint) PathRaw
 		// The final line is accomplished by close()
 	} else {
 		// Pattern: Line, Conic, Line, Conic, Line, Conic, Line, Conic, Close
-		// Points: start, (line, conic_ctrl, conic_end), (line, conic_ctrl, conic_end), ...
+		// points: start, (line, conic_ctrl, conic_end), (line, conic_ctrl, conic_end), ...
 		for i := 0; i < 4; i++ {
 			// Line point
 			points[i*3+1] = rrectIter.next() // line end point
@@ -533,41 +535,41 @@ func RRectPathRaw(rrect RRect, dir enums.PathDirection, startIndex uint) PathRaw
 
 	// Conic weights: all use sqrt(2)/2 for quarter-circle approximation
 	numConics := 4
-	conicWeights := make([]Scalar, numConics)
+	conicWeights := make([]base.Scalar, numConics)
 	for i := 0; i < numConics; i++ {
 		conicWeights[i] = base.ScalarRoot2Over2
 	}
 
 	// Build point indices array
-	// Point indices map verb index to the starting point index in the points array
-	// For Line verbs, addRaw uses PointIndices[i]+1, so PointIndices[i] should point to the point BEFORE the line end
+	// Point indices map verb index to the starting models.Point index in the models.Points array
+	// For Line verbs, addRaw uses models.PointIndices[i]+1, so models.PointIndices[i] should point to the models.Point BEFORE the line end
 	var pointIndices []int
 	if startsWithConic {
 		// Verbs: [Move(0), Conic(1), Line(2), Conic(3), Line(4), Conic(5), Line(6), Conic(7), Close(8)]
-		// Points: [0=start, 1=conic0_ctrl, 2=conic0_end, 3=line0_end, 4=conic1_ctrl, 5=conic1_end, 6=line1_end, 7=conic2_ctrl, 8=conic2_end, 9=line2_end, 10=conic3_ctrl, 11=conic3_end]
-		// Move(0): uses points[0] -> PointIndices[0] = 0
-		// Conic(1): uses points[1] (ctrl) and points[2] (end) -> PointIndices[1] = 1
-		// Line(2): uses points[3] (end) -> PointIndices[2] = 2 (point before line end)
-		// Conic(3): uses points[4] (ctrl) and points[5] (end) -> PointIndices[3] = 4
-		// Line(4): uses points[6] (end) -> PointIndices[4] = 5 (point before line end)
-		// Conic(5): uses points[7] (ctrl) and points[8] (end) -> PointIndices[5] = 7
-		// Line(6): uses points[9] (end) -> PointIndices[6] = 8 (point before line end)
-		// Conic(7): uses points[10] (ctrl) and points[11] (end) -> PointIndices[7] = 10
-		// Close(8): no point -> PointIndices[8] = -1
+		// models.Points: [0=start, 1=conic0_ctrl, 2=conic0_end, 3=line0_end, 4=conic1_ctrl, 5=conic1_end, 6=line1_end, 7=conic2_ctrl, 8=conic2_end, 9=line2_end, 10=conic3_ctrl, 11=conic3_end]
+		// Move(0): uses models.Points[0] -> models.PointIndices[0] = 0
+		// Conic(1): uses models.Points[1] (ctrl) and models.Points[2] (end) -> models.PointIndices[1] = 1
+		// Line(2): uses models.Points[3] (end) -> models.PointIndices[2] = 2 (point before line end)
+		// Conic(3): uses models.Points[4] (ctrl) and models.Points[5] (end) -> models.PointIndices[3] = 4
+		// Line(4): uses models.Points[6] (end) -> models.PointIndices[4] = 5 (point before line end)
+		// Conic(5): uses models.Points[7] (ctrl) and models.Points[8] (end) -> models.PointIndices[5] = 7
+		// Line(6): uses models.Points[9] (end) -> models.PointIndices[6] = 8 (point before line end)
+		// Conic(7): uses models.Points[10] (ctrl) and models.Points[11] (end) -> models.PointIndices[7] = 10
+		// Close(8): no models.Point -> models.PointIndices[8] = -1
 		pointIndices = []int{0, 1, 2, 4, 5, 7, 8, 10, -1}
 	} else {
 		// Verbs: [Move(0), Line(1), Conic(2), Line(3), Conic(4), Line(5), Conic(6), Line(7), Conic(8), Close(9)]
-		// Points: [0=start, 1=line0_end, 2=conic0_ctrl, 3=conic0_end, 4=line1_end, 5=conic1_ctrl, 6=conic1_end, 7=line2_end, 8=conic2_ctrl, 9=conic2_end, 10=line3_end, 11=conic3_ctrl, 12=conic3_end]
-		// Move(0): uses points[0] -> PointIndices[0] = 0
-		// Line(1): uses points[1] (end) -> PointIndices[1] = 0 (point before line end, which is start)
-		// Conic(2): uses points[2] (ctrl) and points[3] (end) -> PointIndices[2] = 2
-		// Line(3): uses points[4] (end) -> PointIndices[3] = 3 (point before line end)
-		// Conic(4): uses points[5] (ctrl) and points[6] (end) -> PointIndices[4] = 5
-		// Line(5): uses points[7] (end) -> PointIndices[5] = 6 (point before line end)
-		// Conic(6): uses points[8] (ctrl) and points[9] (end) -> PointIndices[6] = 8
-		// Line(7): uses points[10] (end) -> PointIndices[7] = 9 (point before line end)
-		// Conic(8): uses points[11] (ctrl) and points[12] (end) -> PointIndices[8] = 11
-		// Close(9): no point -> PointIndices[9] = -1
+		// models.Points: [0=start, 1=line0_end, 2=conic0_ctrl, 3=conic0_end, 4=line1_end, 5=conic1_ctrl, 6=conic1_end, 7=line2_end, 8=conic2_ctrl, 9=conic2_end, 10=line3_end, 11=conic3_ctrl, 12=conic3_end]
+		// Move(0): uses models.Points[0] -> models.PointIndices[0] = 0
+		// Line(1): uses models.Points[1] (end) -> models.PointIndices[1] = 0 (point before line end, which is start)
+		// Conic(2): uses models.Points[2] (ctrl) and models.Points[3] (end) -> models.PointIndices[2] = 2
+		// Line(3): uses models.Points[4] (end) -> models.PointIndices[3] = 3 (point before line end)
+		// Conic(4): uses models.Points[5] (ctrl) and models.Points[6] (end) -> models.PointIndices[4] = 5
+		// Line(5): uses models.Points[7] (end) -> models.PointIndices[5] = 6 (point before line end)
+		// Conic(6): uses models.Points[8] (ctrl) and models.Points[9] (end) -> models.PointIndices[6] = 8
+		// Line(7): uses models.Points[10] (end) -> models.PointIndices[7] = 9 (point before line end)
+		// Conic(8): uses models.Points[11] (ctrl) and models.Points[12] (end) -> models.PointIndices[8] = 11
+		// Close(9): no models.Point -> models.PointIndices[9] = -1
 		pointIndices = []int{0, 0, 2, 3, 5, 6, 8, 9, 11, -1}
 	}
 
@@ -593,7 +595,7 @@ func RRectPathRaw(rrect RRect, dir enums.PathDirection, startIndex uint) PathRaw
 	}
 }
 
-func isConcaveBySign(points []Point) bool {
+func isConcaveBySign(points []models.Point) bool {
 	if len(points) <= 3 {
 		// Point, line, or triangle are always convex
 		return false
@@ -604,15 +606,15 @@ func isConcaveBySign(points []Point) bool {
 	lastSx := 999 // kValueNeverReturnedBySign
 	lastSy := 999
 
-	// Check twice: first pass from points[1] to end, second pass processes first edge only
+	// Check twice: first pass from models.Points[1] to end, second pass processes first edge only
 	// This matches C++ implementation: counters and lastSx/lastSy accumulate across both passes
 	currPt := points[0]
 	firstPt := currPt
-	pointIdx := 1 // Start from second point (points[1])
+	pointIdx := 1 // Start from second models.Point (points[1])
 
 	for outerLoop := 0; outerLoop < 2; outerLoop++ {
 		for pointIdx < len(points) {
-			vec := Point{X: points[pointIdx].X - currPt.X, Y: points[pointIdx].Y - currPt.Y}
+			vec := models.Point{X: points[pointIdx].X - currPt.X, Y: points[pointIdx].Y - currPt.Y}
 			if vec.X != 0 || vec.Y != 0 {
 				// Give up if vector construction failed
 				if !IsFinite(vec.X) || !IsFinite(vec.Y) {
@@ -637,7 +639,7 @@ func isConcaveBySign(points []Point) bool {
 			}
 			currPt = points[pointIdx]
 			pointIdx++
-			
+
 			// In C++, the second pass breaks after first iteration
 			if outerLoop == 1 {
 				break
@@ -654,7 +656,7 @@ func isConcaveBySign(points []Point) bool {
 
 // affectsAlphaColorFilter returns true if the color filter exists and may affect alpha
 // It checks if the color filter implements IsAlphaUnchanged() method
-func affectsAlphaColorFilter(cf ColorFilter) bool {
+func affectsAlphaColorFilter(cf interfaces.ColorFilter) bool {
 	if cf == nil {
 		return false
 	}
@@ -664,6 +666,6 @@ func affectsAlphaColorFilter(cf ColorFilter) bool {
 
 // affectsAlphaImageFilter returns true if the image filter exists and may affect alpha
 // For now, if an image filter exists, it affects alpha (as per C++ TODO comment)
-func affectsAlphaImageFilter(imf ImageFilter) bool {
+func affectsAlphaImageFilter(imf interfaces.ImageFilter) bool {
 	return imf != nil
 }

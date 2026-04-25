@@ -3,6 +3,7 @@ package shaper
 import (
 	"unicode/utf8"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
@@ -187,7 +188,7 @@ func (ps *PrimitiveShaper) shapeRun(text string, start, end int,
 			BidiLevel:  bidiLevel,
 			Script:     script,
 			Language:   lang,
-			Advance:    models.Point{X: models.Scalar(runAdvanceX), Y: 0},
+			Advance:    models.Point{X: base.Scalar(runAdvanceX), Y: 0},
 			GlyphCount: uint64(numGlyphs),
 			Utf8Range:  Range{Begin: utf8Offset, End: utf8Offset + bytesVisible},
 		}
@@ -205,7 +206,7 @@ func (ps *PrimitiveShaper) shapeRun(text string, start, end int,
 			var currentX float32 = 0
 			byteOff := utf8Offset
 			for i := 0; i < numGlyphs; i++ {
-				buffer.Positions[i] = models.Point{X: models.Scalar(currentX), Y: 0}
+				buffer.Positions[i] = models.Point{X: base.Scalar(currentX), Y: 0}
 				buffer.Clusters[i] = uint32(byteOff)
 				currentX += float32(widths[glyphOffset+i])
 				byteOff += utf8.RuneLen(visibleRunes[i])
@@ -230,7 +231,7 @@ func isBreakingWhitespace(r rune) bool {
 	}
 }
 
-func linebreak(text string, font interfaces.SkFont, width float32, advances []interfaces.Scalar) (int, int) {
+func linebreak(text string, font interfaces.SkFont, width float32, advances []base.Scalar) (int, int) {
 	var accumulatedWidth float32 = 0
 	glyphIndex := 0
 	start := 0

@@ -1,30 +1,34 @@
 package impl
 
-import "github.com/zodimo/go-skia-support/skia/enums"
+import (
+	"github.com/zodimo/go-skia-support/skia/base"
+	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/models"
+)
 
 // lastPointResult holds the result of getLastPt
 type lastPointResult struct {
 	hasValue bool
-	value    Point
+	value    models.Point
 }
 
 // PathRaw represents raw path data
 type PathRaw struct {
-	Points       []Point
+	Points       []models.Point
 	Verbs        []enums.PathVerb
-	ConicWeights []Scalar
+	ConicWeights []base.Scalar
 	PointIndices []int
 	ConicIndex   []int
 }
 
 // ovalPointIterator iterates through oval points (ellipse midpoints) based on direction and start index
 type ovalPointIterator struct {
-	points     [4]Point
+	points     [4]models.Point
 	currentIdx int
 	advance    int
 }
 
-func newOvalPointIterator(rect Rect, dir enums.PathDirection, startIndex uint) *ovalPointIterator {
+func newOvalPointIterator(rect models.Rect, dir enums.PathDirection, startIndex uint) *ovalPointIterator {
 	cx := (rect.Left + rect.Right) / 2
 	cy := (rect.Top + rect.Bottom) / 2
 
@@ -33,7 +37,7 @@ func newOvalPointIterator(rect Rect, dir enums.PathDirection, startIndex uint) *
 	// [1] = (right, centerY) - right of ellipse
 	// [2] = (centerX, bottom) - bottom of ellipse
 	// [3] = (left, centerY) - left of ellipse
-	points := [4]Point{
+	points := [4]models.Point{
 		{X: cx, Y: rect.Top},
 		{X: rect.Right, Y: cy},
 		{X: cx, Y: rect.Bottom},
@@ -53,29 +57,29 @@ func newOvalPointIterator(rect Rect, dir enums.PathDirection, startIndex uint) *
 	}
 }
 
-func (o *ovalPointIterator) current() Point {
+func (o *ovalPointIterator) current() models.Point {
 	return o.points[o.currentIdx]
 }
 
-func (o *ovalPointIterator) next() Point {
+func (o *ovalPointIterator) next() models.Point {
 	o.currentIdx = (o.currentIdx + o.advance) % 4
 	return o.current()
 }
 
 // rectPointIterator iterates through rectangle corners based on direction and start index
 type rectPointIterator struct {
-	points     [4]Point
+	points     [4]models.Point
 	currentIdx int
 	advance    int
 }
 
-func newRectPointIterator(rect Rect, dir enums.PathDirection, startIndex uint) *rectPointIterator {
+func newRectPointIterator(rect models.Rect, dir enums.PathDirection, startIndex uint) *rectPointIterator {
 	// Rectangle corners in order:
 	// [0] = (Left, Top)
 	// [1] = (Right, Top)
 	// [2] = (Right, Bottom)
 	// [3] = (Left, Bottom)
-	points := [4]Point{
+	points := [4]models.Point{
 		{X: rect.Left, Y: rect.Top},
 		{X: rect.Right, Y: rect.Top},
 		{X: rect.Right, Y: rect.Bottom},
@@ -95,11 +99,11 @@ func newRectPointIterator(rect Rect, dir enums.PathDirection, startIndex uint) *
 	}
 }
 
-func (r *rectPointIterator) current() Point {
+func (r *rectPointIterator) current() models.Point {
 	return r.points[r.currentIdx]
 }
 
-func (r *rectPointIterator) next() Point {
+func (r *rectPointIterator) next() models.Point {
 	r.currentIdx = (r.currentIdx + r.advance) % 4
 	return r.current()
 }
@@ -107,12 +111,12 @@ func (r *rectPointIterator) next() Point {
 // rrectPointIterator iterates through rounded rectangle points (8 points total)
 // Points are arranged around the rounded rectangle perimeter
 type rrectPointIterator struct {
-	points     [8]Point
+	points     [8]models.Point
 	currentIdx int
 	advance    int
 }
 
-func newRRectPointIterator(rrect RRect, dir enums.PathDirection, startIndex uint) *rrectPointIterator {
+func newRRectPointIterator(rrect models.RRect, dir enums.PathDirection, startIndex uint) *rrectPointIterator {
 	bounds := rrect.Bounds()
 	L := bounds.Left
 	T := bounds.Top
@@ -128,7 +132,7 @@ func newRRectPointIterator(rrect RRect, dir enums.PathDirection, startIndex uint
 	// [5] = (L + LL_radii.X, B) - bottom-left corner start
 	// [6] = (L, B - LL_radii.Y) - bottom-left corner end
 	// [7] = (L, T + UL_radii.Y) - top-left corner end
-	points := [8]Point{
+	points := [8]models.Point{
 		{X: L + rrect.Radii[0].X, Y: T}, // UL start
 		{X: R - rrect.Radii[1].X, Y: T}, // UR start
 		{X: R, Y: T + rrect.Radii[1].Y}, // UR end
@@ -152,21 +156,21 @@ func newRRectPointIterator(rrect RRect, dir enums.PathDirection, startIndex uint
 	}
 }
 
-func (r *rrectPointIterator) current() Point {
+func (r *rrectPointIterator) current() models.Point {
 	return r.points[r.currentIdx]
 }
 
-func (r *rrectPointIterator) next() Point {
+func (r *rrectPointIterator) next() models.Point {
 	r.currentIdx = (r.currentIdx + r.advance) % 8
 	return r.current()
 }
 
 // Convexicator tracks convexity state while iterating through a path
 type convexicator struct {
-	firstPt        Point
-	firstVec       Point // direction leaving firstPt
-	lastPt         Point
-	lastVec        Point // direction that brought path to lastPt
+	firstPt        models.Point
+	firstVec       models.Point // direction leaving firstPt
+	lastPt         models.Point
+	lastVec        models.Point // direction that brought path to lastPt
 	expectedDir    enums.DirChange
 	firstDirection enums.PathFirstDirection
 	reversals      int
@@ -181,26 +185,26 @@ func newConvexicator() *convexicator {
 	}
 }
 
-func (c *convexicator) setMovePt(pt Point) {
+func (c *convexicator) setMovePt(pt models.Point) {
 	c.firstPt = pt
 	c.lastPt = pt
 	c.expectedDir = enums.DirChangeInvalid
 	// Reset vectors to zero to match C++ initialization
 	// Ported from: skia-source/src/core/SkPathPriv.cpp:setMovePt() (lines 424-427)
-	c.lastVec = Point{X: 0, Y: 0}
-	c.firstVec = Point{X: 0, Y: 0}
+	c.lastVec = models.Point{X: 0, Y: 0}
+	c.firstVec = models.Point{X: 0, Y: 0}
 	c.reversals = 0
 	c.isFinite = true
 }
 
-func (c *convexicator) addPt(pt Point) bool {
+func (c *convexicator) addPt(pt models.Point) bool {
 	if c.lastPt == pt {
 		return true
 	}
 	// Should only be true for first non-zero vector after setMovePt was called.
 	// It is possible we doubled back at the start so need to check if lastVec is zero or not.
 	// Ported from: skia-source/src/core/SkPathPriv.cpp:addPt() (lines 429-443)
-	vec := Point{X: pt.X - c.lastPt.X, Y: pt.Y - c.lastPt.Y}
+	vec := models.Point{X: pt.X - c.lastPt.X, Y: pt.Y - c.lastPt.Y}
 	if c.firstPt == c.lastPt && c.expectedDir == enums.DirChangeInvalid && c.lastVec.X == 0 && c.lastVec.Y == 0 {
 		c.lastVec = vec
 		c.firstVec = vec
@@ -225,7 +229,7 @@ func (c *convexicator) getFirstDirection() enums.PathFirstDirection {
 // 	return c.reversals
 // }
 
-func (c *convexicator) directionChange(curVec Point) enums.DirChange {
+func (c *convexicator) directionChange(curVec models.Point) enums.DirChange {
 	cross := crossProduct(c.lastVec, curVec)
 	if !IsFinite(cross) {
 		return enums.DirChangeUnknown
@@ -243,7 +247,7 @@ func (c *convexicator) directionChange(curVec Point) enums.DirChange {
 	return enums.DirChangeLeft
 }
 
-func (c *convexicator) addVec(curVec Point) bool {
+func (c *convexicator) addVec(curVec models.Point) bool {
 	dir := c.directionChange(curVec)
 	switch dir {
 	case enums.DirChangeLeft, enums.DirChangeRight:

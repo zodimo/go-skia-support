@@ -3,7 +3,10 @@ package impl
 import (
 	"math"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // NewMatrixIdentity creates an identity matrix:
@@ -11,9 +14,9 @@ import (
 //	| 1 0 0 |
 //	| 0 1 0 |
 //	| 0 0 1 |
-func NewMatrixIdentity() SkMatrix {
+func NewMatrixIdentity() interfaces.SkMatrix {
 	return &Matrix{
-		mat: [9]Scalar{1, 0, 0, 0, 1, 0, 0, 0, 1},
+		mat: [9]base.Scalar{1, 0, 0, 0, 1, 0, 0, 0, 1},
 	}
 }
 
@@ -22,9 +25,9 @@ func NewMatrixIdentity() SkMatrix {
 //	| 1 0 dx |
 //	| 0 1 dy |
 //	| 0 0  1 |
-func NewMatrixTranslate(dx, dy Scalar) SkMatrix {
+func NewMatrixTranslate(dx, dy base.Scalar) interfaces.SkMatrix {
 	return &Matrix{
-		mat: [9]Scalar{1, 0, dx, 0, 1, dy, 0, 0, 1},
+		mat: [9]base.Scalar{1, 0, dx, 0, 1, dy, 0, 0, 1},
 	}
 }
 
@@ -33,9 +36,9 @@ func NewMatrixTranslate(dx, dy Scalar) SkMatrix {
 //	| sx  0  0 |
 //	|  0 sy  0 |
 //	|  0  0  1 |
-func NewMatrixScale(sx, sy Scalar) SkMatrix {
+func NewMatrixScale(sx, sy base.Scalar) interfaces.SkMatrix {
 	return &Matrix{
-		mat: [9]Scalar{sx, 0, 0, 0, sy, 0, 0, 0, 1},
+		mat: [9]base.Scalar{sx, 0, 0, 0, sy, 0, 0, 0, 1},
 	}
 }
 
@@ -44,17 +47,17 @@ func NewMatrixScale(sx, sy Scalar) SkMatrix {
 //	| cos(deg) -sin(deg) 0 |
 //	| sin(deg)  cos(deg) 0 |
 //	|    0         0     1 |
-func NewMatrixRotate(deg Scalar) SkMatrix {
+func NewMatrixRotate(deg base.Scalar) interfaces.SkMatrix {
 	rad := deg * math.Pi / 180.0
-	cos := Scalar(math.Cos(float64(rad)))
-	sin := Scalar(math.Sin(float64(rad)))
+	cos := base.Scalar(math.Cos(float64(rad)))
+	sin := base.Scalar(math.Sin(float64(rad)))
 	return &Matrix{
-		mat: [9]Scalar{cos, -sin, 0, sin, cos, 0, 0, 0, 1},
+		mat: [9]base.Scalar{cos, -sin, 0, sin, cos, 0, 0, 0, 1},
 	}
 }
 
 // NewMatrixSkew creates a skew matrix
-func NewMatrixSkew(kx, ky Scalar) SkMatrix {
+func NewMatrixSkew(kx, ky base.Scalar) interfaces.SkMatrix {
 	m := &Matrix{}
 	m.SetSkew(kx, ky)
 	return m
@@ -62,14 +65,14 @@ func NewMatrixSkew(kx, ky Scalar) SkMatrix {
 
 // NewMatrixRotateRad creates a rotation matrix from radians.
 // Rotation in radians, positive rotates clockwise.
-func NewMatrixRotateRad(rad Scalar) SkMatrix {
+func NewMatrixRotateRad(rad base.Scalar) interfaces.SkMatrix {
 	deg := rad * 180.0 / math.Pi
 	return NewMatrixRotate(deg)
 }
 
 // NewMatrixRotateWithPivot creates a rotation matrix about a pivot point.
 // Rotation in degrees, positive rotates clockwise.
-func NewMatrixRotateWithPivot(deg Scalar, px, py Scalar) SkMatrix {
+func NewMatrixRotateWithPivot(deg base.Scalar, px, py base.Scalar) interfaces.SkMatrix {
 	m := &Matrix{}
 	m.SetRotate(deg, px, py)
 	return m
@@ -80,7 +83,7 @@ func NewMatrixRotateWithPivot(deg Scalar, px, py Scalar) SkMatrix {
 //	| scaleX  skewX transX |
 //	|  skewY scaleY transY |
 //	| persp0 persp1 persp2 |
-func NewMatrixAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2 Scalar) SkMatrix {
+func NewMatrixAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2 base.Scalar) interfaces.SkMatrix {
 	m := &Matrix{}
 	m.SetAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2)
 	return m
@@ -88,13 +91,13 @@ func NewMatrixAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, 
 
 // NewMatrixScaleTranslate creates a matrix that scales and then translates.
 // Equivalent to Scale(sx, sy) * Translate(tx, ty)
-func NewMatrixScaleTranslate(sx, sy, tx, ty Scalar) SkMatrix {
+func NewMatrixScaleTranslate(sx, sy, tx, ty base.Scalar) interfaces.SkMatrix {
 	m := NewMatrixScale(sx, sy)
 	m.PostTranslate(tx, ty)
 	return m
 }
 
-var _ SkMatrix = (*Matrix)(nil)
+var _ interfaces.SkMatrix = (*Matrix)(nil)
 
 // Matrix represents a 3x3 transformation matrix.
 // The matrix is stored in row-major order:
@@ -103,7 +106,7 @@ var _ SkMatrix = (*Matrix)(nil)
 //	[3] = skewY,   [4] = scaleY,  [5] = transY
 //	[6] = persp0,  [7] = persp1,  [8] = persp2
 type Matrix struct {
-	mat [9]Scalar
+	mat [9]base.Scalar
 }
 
 // hasPerspective returns true if the matrix contains perspective elements.
@@ -122,7 +125,7 @@ func (m Matrix) isIdentity() bool {
 // MapPoint transforms a point using the matrix.
 // For affine matrices: x' = x*scaleX + y*skewX + transX, y' = x*skewY + y*scaleY + transY
 // For perspective matrices: applies perspective division
-func (m Matrix) MapPoint(pt Point) Point {
+func (m Matrix) MapPoint(pt models.Point) models.Point {
 	if m.hasPerspective() {
 		return m.mapPointPerspective(pt)
 	}
@@ -131,21 +134,21 @@ func (m Matrix) MapPoint(pt Point) Point {
 
 // MapXY transforms a single x,y coordinate pair using the matrix.
 // Returns the transformed (x, y) coordinates.
-func (m Matrix) MapXY(x, y Scalar) (Scalar, Scalar) {
-	pt := m.MapPoint(Point{X: x, Y: y})
+func (m Matrix) MapXY(x, y base.Scalar) (base.Scalar, base.Scalar) {
+	pt := m.MapPoint(models.Point{X: x, Y: y})
 	return pt.X, pt.Y
 }
 
 // mapPointAffine transforms a point assuming the matrix has no perspective.
-func (m Matrix) mapPointAffine(pt Point) Point {
-	return Point{
+func (m Matrix) mapPointAffine(pt models.Point) models.Point {
+	return models.Point{
 		X: pt.X*m.mat[kMScaleX] + pt.Y*m.mat[kMSkewX] + m.mat[kMTransX],
 		Y: pt.X*m.mat[kMSkewY] + pt.Y*m.mat[kMScaleY] + m.mat[kMTransY],
 	}
 }
 
 // mapPointPerspective transforms a point with perspective division.
-func (m Matrix) mapPointPerspective(pt Point) Point {
+func (m Matrix) mapPointPerspective(pt models.Point) models.Point {
 	x := pt.X*m.mat[kMScaleX] + pt.Y*m.mat[kMSkewX] + m.mat[kMTransX]
 	y := pt.X*m.mat[kMSkewY] + pt.Y*m.mat[kMScaleY] + m.mat[kMTransY]
 	z := pt.X*m.mat[kMPersp0] + pt.Y*m.mat[kMPersp1] + m.mat[kMPersp2]
@@ -154,7 +157,7 @@ func (m Matrix) mapPointPerspective(pt Point) Point {
 		z = 1 / z
 	}
 
-	return Point{
+	return models.Point{
 		X: x * z,
 		Y: y * z,
 	}
@@ -172,7 +175,7 @@ func (m *Matrix) SetIdentity() {
 }
 
 // SetScale sets the matrix to scale by (sx, sy).
-func (m *Matrix) SetScale(sx, sy Scalar) {
+func (m *Matrix) SetScale(sx, sy base.Scalar) {
 	m.mat[kMScaleX] = sx
 	m.mat[kMSkewX] = 0
 	m.mat[kMTransX] = 0
@@ -185,7 +188,7 @@ func (m *Matrix) SetScale(sx, sy Scalar) {
 }
 
 // SetTranslate sets the matrix to translate by (dx, dy).
-func (m *Matrix) SetTranslate(dx, dy Scalar) {
+func (m *Matrix) SetTranslate(dx, dy base.Scalar) {
 	m.mat[kMScaleX] = 1
 	m.mat[kMSkewX] = 0
 	m.mat[kMTransX] = dx
@@ -198,7 +201,7 @@ func (m *Matrix) SetTranslate(dx, dy Scalar) {
 }
 
 // SetSkew sets the matrix to skew by (kx, ky).
-func (m *Matrix) SetSkew(kx, ky Scalar) {
+func (m *Matrix) SetSkew(kx, ky base.Scalar) {
 	m.mat[kMScaleX] = 1
 	m.mat[kMSkewX] = kx
 	m.mat[kMTransX] = 0
@@ -211,11 +214,11 @@ func (m *Matrix) SetSkew(kx, ky Scalar) {
 }
 
 // SetRotate sets the matrix to rotate by degrees about a pivot point.
-func (m *Matrix) SetRotate(degrees Scalar, px, py Scalar) {
+func (m *Matrix) SetRotate(degrees base.Scalar, px, py base.Scalar) {
 	if px == 0 && py == 0 {
 		rad := degrees * math.Pi / 180.0
-		cos := Scalar(math.Cos(float64(rad)))
-		sin := Scalar(math.Sin(float64(rad)))
+		cos := base.Scalar(math.Cos(float64(rad)))
+		sin := base.Scalar(math.Sin(float64(rad)))
 		m.mat[kMScaleX] = cos
 		m.mat[kMSkewX] = -sin
 		m.mat[kMTransX] = 0
@@ -227,8 +230,8 @@ func (m *Matrix) SetRotate(degrees Scalar, px, py Scalar) {
 		m.mat[kMPersp2] = 1
 	} else {
 		rad := degrees * math.Pi / 180.0
-		cos := Scalar(math.Cos(float64(rad)))
-		sin := Scalar(math.Sin(float64(rad)))
+		cos := base.Scalar(math.Cos(float64(rad)))
+		sin := base.Scalar(math.Sin(float64(rad)))
 		dx := sin*py + (1-cos)*px
 		dy := -sin*px + (1-cos)*py
 		m.mat[kMScaleX] = cos
@@ -244,7 +247,7 @@ func (m *Matrix) SetRotate(degrees Scalar, px, py Scalar) {
 }
 
 // SetConcat sets the matrix to the concatenation of a and b.
-func (m *Matrix) SetConcat(a, b SkMatrix) {
+func (m *Matrix) SetConcat(a, b interfaces.SkMatrix) {
 
 	aMat := a.(*Matrix)
 	bMat := b.(*Matrix)
@@ -304,7 +307,7 @@ func (m *Matrix) SetConcat(a, b SkMatrix) {
 }
 
 // PreTranslate premultiplies the matrix with a translation.
-func (m *Matrix) PreTranslate(dx, dy Scalar) {
+func (m *Matrix) PreTranslate(dx, dy base.Scalar) {
 	if m.HasPerspective() {
 		t := NewMatrixTranslate(dx, dy)
 		m.SetConcat(m, t)
@@ -315,7 +318,7 @@ func (m *Matrix) PreTranslate(dx, dy Scalar) {
 }
 
 // PreScale premultiplies the matrix with a scale.
-func (m *Matrix) PreScale(sx, sy Scalar) {
+func (m *Matrix) PreScale(sx, sy base.Scalar) {
 	if sx == 1 && sy == 1 {
 		return
 	}
@@ -328,27 +331,27 @@ func (m *Matrix) PreScale(sx, sy Scalar) {
 }
 
 // PreSkew premultiplies the matrix with a skew.
-func (m *Matrix) PreSkew(kx, ky Scalar) {
+func (m *Matrix) PreSkew(kx, ky base.Scalar) {
 	s := NewMatrixSkew(kx, ky)
 	m.SetConcat(m, s)
 }
 
 // PreRotate premultiplies the matrix with a rotation.
-func (m *Matrix) PreRotate(degrees Scalar, px, py Scalar) {
+func (m *Matrix) PreRotate(degrees base.Scalar, px, py base.Scalar) {
 	r := &Matrix{}
 	r.SetRotate(degrees, px, py)
 	m.SetConcat(m, r)
 }
 
 // PreConcat premultiplies the matrix with another matrix.
-func (m *Matrix) PreConcat(other SkMatrix) {
+func (m *Matrix) PreConcat(other interfaces.SkMatrix) {
 	if !other.IsIdentity() {
 		m.SetConcat(m, other)
 	}
 }
 
 // PostTranslate postmultiplies the matrix with a translation.
-func (m *Matrix) PostTranslate(dx, dy Scalar) {
+func (m *Matrix) PostTranslate(dx, dy base.Scalar) {
 	if m.HasPerspective() {
 		t := NewMatrixTranslate(dx, dy)
 		m.SetConcat(t, m)
@@ -359,7 +362,7 @@ func (m *Matrix) PostTranslate(dx, dy Scalar) {
 }
 
 // PostScale postmultiplies the matrix with a scale.
-func (m *Matrix) PostScale(sx, sy Scalar) {
+func (m *Matrix) PostScale(sx, sy base.Scalar) {
 	if sx == 1 && sy == 1 {
 		return
 	}
@@ -372,69 +375,69 @@ func (m *Matrix) PostScale(sx, sy Scalar) {
 }
 
 // PostSkew postmultiplies the matrix with a skew.
-func (m *Matrix) PostSkew(kx, ky Scalar) {
+func (m *Matrix) PostSkew(kx, ky base.Scalar) {
 	s := NewMatrixSkew(kx, ky)
 	m.SetConcat(s, m)
 }
 
 // PostRotate postmultiplies the matrix with a rotation.
-func (m *Matrix) PostRotate(degrees Scalar, px, py Scalar) {
+func (m *Matrix) PostRotate(degrees base.Scalar, px, py base.Scalar) {
 	r := &Matrix{}
 	r.SetRotate(degrees, px, py)
 	m.SetConcat(r, m)
 }
 
 // PostConcat postmultiplies the matrix with another matrix.
-func (m *Matrix) PostConcat(other SkMatrix) {
+func (m *Matrix) PostConcat(other interfaces.SkMatrix) {
 	if !other.IsIdentity() {
 		m.SetConcat(other, m)
 	}
 }
 
 // GetScaleX returns the x-axis scale factor.
-func (m Matrix) GetScaleX() Scalar {
+func (m Matrix) GetScaleX() base.Scalar {
 	return m.mat[kMScaleX]
 }
 
 // GetScaleY returns the y-axis scale factor.
-func (m Matrix) GetScaleY() Scalar {
+func (m Matrix) GetScaleY() base.Scalar {
 	return m.mat[kMScaleY]
 }
 
 // GetSkewX returns the x-axis skew factor.
-func (m Matrix) GetSkewX() Scalar {
+func (m Matrix) GetSkewX() base.Scalar {
 	return m.mat[kMSkewX]
 }
 
 // GetSkewY returns the y-axis skew factor.
-func (m Matrix) GetSkewY() Scalar {
+func (m Matrix) GetSkewY() base.Scalar {
 	return m.mat[kMSkewY]
 }
 
 // GetTranslateX returns the x-axis translation.
-func (m Matrix) GetTranslateX() Scalar {
+func (m Matrix) GetTranslateX() base.Scalar {
 	return m.mat[kMTransX]
 }
 
 // GetTranslateY returns the y-axis translation.
-func (m Matrix) GetTranslateY() Scalar {
+func (m Matrix) GetTranslateY() base.Scalar {
 	return m.mat[kMTransY]
 }
 
 // GetPerspX returns the x-axis perspective factor.
-func (m Matrix) GetPerspX() Scalar {
+func (m Matrix) GetPerspX() base.Scalar {
 	return m.mat[kMPersp0]
 }
 
 // GetPerspY returns the y-axis perspective factor.
-func (m Matrix) GetPerspY() Scalar {
+func (m Matrix) GetPerspY() base.Scalar {
 	return m.mat[kMPersp1]
 }
 
 // Get returns one matrix value by index.
 // Index must be one of: kMScaleX (0), kMSkewX (1), kMTransX (2), kMSkewY (3),
 // kMScaleY (4), kMTransY (5), kMPersp0 (6), kMPersp1 (7), kMPersp2 (8)
-func (m Matrix) Get(index int) Scalar {
+func (m Matrix) Get(index int) base.Scalar {
 	if index >= 0 && index < 9 {
 		return m.mat[index]
 	}
@@ -444,13 +447,13 @@ func (m Matrix) Get(index int) Scalar {
 // Get9 copies all nine matrix values into a buffer.
 // Values are in member value ascending order: kMScaleX, kMSkewX, kMTransX,
 // kMSkewY, kMScaleY, kMTransY, kMPersp0, kMPersp1, kMPersp2
-func (m Matrix) Get9() [9]Scalar {
+func (m Matrix) Get9() [9]base.Scalar {
 	return m.mat
 }
 
 // GetRC returns one matrix value from a particular row/column.
 // Row and column must be in range [0, 2]
-func (m Matrix) GetRC(row, col int) Scalar {
+func (m Matrix) GetRC(row, col int) base.Scalar {
 	if row >= 0 && row <= 2 && col >= 0 && col <= 2 {
 		return m.mat[row*3+col]
 	}
@@ -460,7 +463,7 @@ func (m Matrix) GetRC(row, col int) Scalar {
 // Set sets one matrix value by index and invalidates the type cache.
 // Index must be one of: kMScaleX (0), kMSkewX (1), kMTransX (2), kMSkewY (3),
 // kMScaleY (4), kMTransY (5), kMPersp0 (6), kMPersp1 (7), kMPersp2 (8)
-func (m *Matrix) Set(index int, value Scalar) {
+func (m *Matrix) Set(index int, value base.Scalar) {
 	if index >= 0 && index < 9 {
 		m.mat[index] = value
 		// Type mask will be recomputed on next GetType() call
@@ -470,7 +473,7 @@ func (m *Matrix) Set(index int, value Scalar) {
 // Set9 sets all nine matrix values from a buffer.
 // Values are in member value ascending order: kMScaleX, kMSkewX, kMTransX,
 // kMSkewY, kMScaleY, kMTransY, kMPersp0, kMPersp1, kMPersp2
-func (m *Matrix) Set9(values [9]Scalar) {
+func (m *Matrix) Set9(values [9]base.Scalar) {
 	m.mat = values
 	// Type mask will be recomputed on next GetType() call
 }
@@ -481,7 +484,7 @@ func (m *Matrix) Set9(values [9]Scalar) {
 //	| scaleX  skewX transX |
 //	|  skewY scaleY transY |
 //	| persp0 persp1 persp2 |
-func (m *Matrix) SetAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2 Scalar) {
+func (m *Matrix) SetAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2 base.Scalar) {
 	m.mat[kMScaleX] = scaleX
 	m.mat[kMSkewX] = skewX
 	m.mat[kMTransX] = transX
@@ -495,42 +498,42 @@ func (m *Matrix) SetAll(scaleX, skewX, transX, skewY, scaleY, transY, persp0, pe
 }
 
 // SetScaleX sets the horizontal scale factor.
-func (m *Matrix) SetScaleX(v Scalar) {
+func (m *Matrix) SetScaleX(v base.Scalar) {
 	m.Set(kMScaleX, v)
 }
 
 // SetScaleY sets the vertical scale factor.
-func (m *Matrix) SetScaleY(v Scalar) {
+func (m *Matrix) SetScaleY(v base.Scalar) {
 	m.Set(kMScaleY, v)
 }
 
 // SetSkewX sets the horizontal skew factor.
-func (m *Matrix) SetSkewX(v Scalar) {
+func (m *Matrix) SetSkewX(v base.Scalar) {
 	m.Set(kMSkewX, v)
 }
 
 // SetSkewY sets the vertical skew factor.
-func (m *Matrix) SetSkewY(v Scalar) {
+func (m *Matrix) SetSkewY(v base.Scalar) {
 	m.Set(kMSkewY, v)
 }
 
 // SetTranslateX sets the horizontal translation.
-func (m *Matrix) SetTranslateX(v Scalar) {
+func (m *Matrix) SetTranslateX(v base.Scalar) {
 	m.Set(kMTransX, v)
 }
 
 // SetTranslateY sets the vertical translation.
-func (m *Matrix) SetTranslateY(v Scalar) {
+func (m *Matrix) SetTranslateY(v base.Scalar) {
 	m.Set(kMTransY, v)
 }
 
 // SetPerspX sets the input x-axis perspective factor.
-func (m *Matrix) SetPerspX(v Scalar) {
+func (m *Matrix) SetPerspX(v base.Scalar) {
 	m.Set(kMPersp0, v)
 }
 
 // SetPerspY sets the input y-axis perspective factor.
-func (m *Matrix) SetPerspY(v Scalar) {
+func (m *Matrix) SetPerspY(v base.Scalar) {
 	m.Set(kMPersp1, v)
 }
 
@@ -637,7 +640,7 @@ func (m Matrix) GetType() enums.MatrixType {
 }
 
 // MapPoints applies the matrix transformation to the points.
-func (m Matrix) MapPoints(dst, src []Point) int {
+func (m Matrix) MapPoints(dst, src []models.Point) int {
 	count := minInt(len(dst), len(src))
 	if count == 0 {
 		return 0
@@ -662,12 +665,12 @@ func (m Matrix) MapPoints(dst, src []Point) int {
 }
 
 // MapRect applies the matrix transformation to a rectangle.
-func (m Matrix) MapRect(rect Rect) Rect {
+func (m Matrix) MapRect(rect models.Rect) models.Rect {
 	if m.GetType() <= enums.MatrixTypeTranslate {
 		// Translation only
 		tx := m.mat[kMTransX]
 		ty := m.mat[kMTransY]
-		return Rect{
+		return models.Rect{
 			Left:   rect.Left + tx,
 			Top:    rect.Top + ty,
 			Right:  rect.Right + tx,
@@ -694,18 +697,18 @@ func (m Matrix) MapRect(rect Rect) Rect {
 			top, bottom = bottom, top
 		}
 
-		return Rect{Left: left, Top: top, Right: right, Bottom: bottom}
+		return models.Rect{Left: left, Top: top, Right: right, Bottom: bottom}
 	}
 
 	// General case: map all four corners
-	corners := [4]Point{
+	corners := [4]models.Point{
 		{X: rect.Left, Y: rect.Top},
 		{X: rect.Right, Y: rect.Top},
 		{X: rect.Right, Y: rect.Bottom},
 		{X: rect.Left, Y: rect.Bottom},
 	}
 
-	mapped := make([]Point, 4)
+	mapped := make([]models.Point, 4)
 	m.MapPoints(mapped, corners[:])
 
 	// Find bounding box
@@ -729,16 +732,16 @@ func (m Matrix) MapRect(rect Rect) Rect {
 		}
 	}
 
-	return Rect{Left: minX, Top: minY, Right: maxX, Bottom: maxY}
+	return models.Rect{Left: minX, Top: minY, Right: maxX, Bottom: maxY}
 }
 
 // MapRectToRect applies the matrix transformation mapping src to dst.
-func (m *Matrix) MapRectToRect(src, dst Rect) bool {
+func (m *Matrix) MapRectToRect(src, dst models.Rect) bool {
 	// Compute scale factors
 	sx := (dst.Right - dst.Left) / (src.Right - src.Left)
 	sy := (dst.Bottom - dst.Top) / (src.Bottom - src.Top)
 
-	if !isFinite(Scalar(sx)) || !isFinite(Scalar(sy)) {
+	if !isFinite(base.Scalar(sx)) || !isFinite(base.Scalar(sy)) {
 		m.Reset()
 		return false
 	}
@@ -753,7 +756,7 @@ func (m *Matrix) MapRectToRect(src, dst Rect) bool {
 }
 
 // Invert inverts the matrix if possible.
-func (m *Matrix) Invert() (SkMatrix, bool) {
+func (m *Matrix) Invert() (interfaces.SkMatrix, bool) {
 	mask := m.GetType()
 
 	if mask == enums.MatrixTypeIdentity {
@@ -819,7 +822,7 @@ func (m *Matrix) Invert() (SkMatrix, bool) {
 
 // Equals compares two matrices for equality.
 // Returns true if all nine matrix values are equal.
-func (m Matrix) Equals(other SkMatrix) bool {
+func (m Matrix) Equals(other interfaces.SkMatrix) bool {
 	if other == nil {
 		return false
 	}
@@ -845,7 +848,7 @@ func (m Matrix) computeInvDeterminant(isPerspective bool) float64 {
 	det := m.computeDeterminant(isPerspective)
 
 	// Check if determinant is nearly zero
-	if scalarNearlyZero(Scalar(det)) {
+	if scalarNearlyZero(base.Scalar(det)) {
 		return 0
 	}
 
@@ -869,24 +872,24 @@ func (m Matrix) computeDeterminant(isPerspective bool) float64 {
 	}
 }
 
-func (m Matrix) computeInv(dst *[9]Scalar, src [9]Scalar, invDet float64, isPersp bool) {
+func (m Matrix) computeInv(dst *[9]base.Scalar, src [9]base.Scalar, invDet float64, isPersp bool) {
 	if isPersp {
-		dst[kMScaleX] = Scalar(scross_dscale(src[kMScaleY], src[kMPersp2], src[kMTransY], src[kMPersp1], invDet))
-		dst[kMSkewX] = Scalar(scross_dscale(src[kMTransX], src[kMPersp1], src[kMSkewX], src[kMPersp2], invDet))
-		dst[kMTransX] = Scalar(scross_dscale(src[kMSkewX], src[kMTransY], src[kMTransX], src[kMScaleY], invDet))
-		dst[kMSkewY] = Scalar(scross_dscale(src[kMTransY], src[kMPersp0], src[kMSkewY], src[kMPersp2], invDet))
-		dst[kMScaleY] = Scalar(scross_dscale(src[kMScaleX], src[kMPersp2], src[kMTransX], src[kMPersp0], invDet))
-		dst[kMTransY] = Scalar(scross_dscale(src[kMTransX], src[kMSkewY], src[kMScaleX], src[kMTransY], invDet))
-		dst[kMPersp0] = Scalar(scross_dscale(src[kMSkewY], src[kMPersp1], src[kMScaleY], src[kMPersp0], invDet))
-		dst[kMPersp1] = Scalar(scross_dscale(src[kMSkewX], src[kMPersp0], src[kMScaleX], src[kMPersp1], invDet))
-		dst[kMPersp2] = Scalar(scross_dscale(src[kMScaleX], src[kMScaleY], src[kMSkewX], src[kMSkewY], invDet))
+		dst[kMScaleX] = base.Scalar(scross_dscale(src[kMScaleY], src[kMPersp2], src[kMTransY], src[kMPersp1], invDet))
+		dst[kMSkewX] = base.Scalar(scross_dscale(src[kMTransX], src[kMPersp1], src[kMSkewX], src[kMPersp2], invDet))
+		dst[kMTransX] = base.Scalar(scross_dscale(src[kMSkewX], src[kMTransY], src[kMTransX], src[kMScaleY], invDet))
+		dst[kMSkewY] = base.Scalar(scross_dscale(src[kMTransY], src[kMPersp0], src[kMSkewY], src[kMPersp2], invDet))
+		dst[kMScaleY] = base.Scalar(scross_dscale(src[kMScaleX], src[kMPersp2], src[kMTransX], src[kMPersp0], invDet))
+		dst[kMTransY] = base.Scalar(scross_dscale(src[kMTransX], src[kMSkewY], src[kMScaleX], src[kMTransY], invDet))
+		dst[kMPersp0] = base.Scalar(scross_dscale(src[kMSkewY], src[kMPersp1], src[kMScaleY], src[kMPersp0], invDet))
+		dst[kMPersp1] = base.Scalar(scross_dscale(src[kMSkewX], src[kMPersp0], src[kMScaleX], src[kMPersp1], invDet))
+		dst[kMPersp2] = base.Scalar(scross_dscale(src[kMScaleX], src[kMScaleY], src[kMSkewX], src[kMSkewY], invDet))
 	} else {
-		dst[kMScaleX] = Scalar(float64(src[kMScaleY]) * invDet)
-		dst[kMSkewX] = Scalar(-float64(src[kMSkewX]) * invDet)
-		dst[kMTransX] = Scalar(dcross_dscale(float64(src[kMSkewX]), float64(src[kMTransY]), float64(src[kMScaleY]), float64(src[kMTransX]), invDet))
-		dst[kMSkewY] = Scalar(-float64(src[kMSkewY]) * invDet)
-		dst[kMScaleY] = Scalar(float64(src[kMScaleX]) * invDet)
-		dst[kMTransY] = Scalar(dcross_dscale(float64(src[kMSkewY]), float64(src[kMTransX]), float64(src[kMScaleX]), float64(src[kMTransY]), invDet))
+		dst[kMScaleX] = base.Scalar(float64(src[kMScaleY]) * invDet)
+		dst[kMSkewX] = base.Scalar(-float64(src[kMSkewX]) * invDet)
+		dst[kMTransX] = base.Scalar(dcross_dscale(float64(src[kMSkewX]), float64(src[kMTransY]), float64(src[kMScaleY]), float64(src[kMTransX]), invDet))
+		dst[kMSkewY] = base.Scalar(-float64(src[kMSkewY]) * invDet)
+		dst[kMScaleY] = base.Scalar(float64(src[kMScaleX]) * invDet)
+		dst[kMTransY] = base.Scalar(dcross_dscale(float64(src[kMSkewY]), float64(src[kMTransX]), float64(src[kMScaleX]), float64(src[kMTransY]), invDet))
 		dst[kMPersp0] = 0
 		dst[kMPersp1] = 0
 		dst[kMPersp2] = 1

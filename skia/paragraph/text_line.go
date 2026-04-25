@@ -3,6 +3,7 @@ package paragraph
 import (
 	"math"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/impl"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
@@ -329,7 +330,7 @@ func (tl *TextLine) measureTextInsideOneRun(
 		// No glyphs in range
 		return ClipContext{
 			Run:       run,
-			Clip:      models.Rect{Left: models.Scalar(runOffsetInLine), Right: models.Scalar(runOffsetInLine)},
+			Clip:      models.Rect{Left: base.Scalar(runOffsetInLine), Right: base.Scalar(runOffsetInLine)},
 			TextShift: runOffsetInLine,
 		}
 	}
@@ -358,9 +359,9 @@ func (tl *TextLine) measureTextInsideOneRun(
 		Run:            run,
 		Pos:            startGlyph,
 		Size:           endGlyph - startGlyph,
-		Clip:           models.Rect{Left: models.Scalar(runOffsetInLine + startX), Right: models.Scalar(runOffsetInLine + startX + width)},
-		TextShift:      runOffsetInLine + startX,               // Is checking relative shift?
-		ClippingNeeded: models.Scalar(width) < run.Advance().X, // heuristic
+		Clip:           models.Rect{Left: base.Scalar(runOffsetInLine + startX), Right: base.Scalar(runOffsetInLine + startX + width)},
+		TextShift:      runOffsetInLine + startX,             // Is checking relative shift?
+		ClippingNeeded: base.Scalar(width) < run.Advance().X, // heuristic
 	}
 }
 
@@ -453,7 +454,7 @@ func (tl *TextLine) CreateEllipsis(maxWidth float32, ellipsis string, ltr bool) 
 		if float32(width)+float32(ellipsisWidth) <= maxWidth {
 			// Fits!
 			tl.ellipsis = ellipsisRun
-			tl.advance.X = models.Scalar(width) // Update line width to the reduction
+			tl.advance.X = base.Scalar(width) // Update line width to the reduction
 
 			// Update ranges
 			tl.clusterRange.End = i
@@ -466,7 +467,7 @@ func (tl *TextLine) CreateEllipsis(maxWidth float32, ellipsis string, ltr bool) 
 		}
 
 		// Remove cluster width
-		width -= models.Scalar(cluster.Width())
+		width -= base.Scalar(cluster.Width())
 	}
 
 	// Fallback: clear line if ellipsis doesn't fit at all?
@@ -497,7 +498,7 @@ func (tl *TextLine) shapeEllipsis(ellipsis string, cluster *Cluster) *Run {
 		if run != nil {
 			fontSize = float32(run.Font().Size())
 		}
-		font := impl.NewFontWithTypefaceAndSize(typeface, models.Scalar(fontSize))
+		font := impl.NewFontWithTypefaceAndSize(typeface, base.Scalar(fontSize))
 
 		hbShaper := shaper.NewHarfbuzzShaper()
 		fontIter := shaper.NewTrivialFontRunIterator(font, len(ellipsis))
@@ -685,10 +686,10 @@ func (tl *TextLine) GetRectsForRange(textRange TextRange, rectHeightStyle RectHe
 		}
 
 		rect := models.Rect{
-			Left:   models.Scalar(minX + float32(tl.offset.X)),
-			Top:    models.Scalar(top),
-			Right:  models.Scalar(maxX + float32(tl.offset.X)),
-			Bottom: models.Scalar(bottom),
+			Left:   base.Scalar(minX + float32(tl.offset.X)),
+			Top:    base.Scalar(top),
+			Right:  base.Scalar(maxX + float32(tl.offset.X)),
+			Bottom: base.Scalar(bottom),
 		}
 
 		direction := TextDirectionLTR

@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
@@ -358,7 +359,7 @@ func BenchmarkPath_ArcTo(b *testing.B) {
 	oval := models.Rect{Left: 0, Top: 0, Right: 100, Bottom: 100}
 	for i := 0; i < b.N; i++ {
 		path := NewSkPath(enums.PathFillTypeDefault)
-		path.ArcTo(oval, 0, Scalar(i%360), true)
+		path.ArcTo(oval, 0, base.Scalar(i%360), true)
 	}
 }
 
@@ -366,7 +367,7 @@ func BenchmarkPath_AddArc(b *testing.B) {
 	oval := models.Rect{Left: 0, Top: 0, Right: 100, Bottom: 100}
 	for i := 0; i < b.N; i++ {
 		path := NewSkPath(enums.PathFillTypeDefault)
-		path.AddArc(oval, 0, Scalar(i%360))
+		path.AddArc(oval, 0, base.Scalar(i%360))
 	}
 }
 

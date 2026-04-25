@@ -3,6 +3,7 @@ package shaper
 import (
 	"testing"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/impl"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
@@ -188,8 +189,8 @@ func (m *MockFont) UnicharToGlyph(unichar rune) uint16 {
 	return uint16(unichar) // Identity mapping for test
 }
 
-func (m *MockFont) GetWidths(glyphs []uint16) []models.Scalar {
-	widths := make([]models.Scalar, len(glyphs))
+func (m *MockFont) GetWidths(glyphs []uint16) []base.Scalar {
+	widths := make([]base.Scalar, len(glyphs))
 	for i := range glyphs {
 		widths[i] = 10.0 // Constant width
 	}

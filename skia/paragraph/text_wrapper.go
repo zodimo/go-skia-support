@@ -3,6 +3,7 @@ package paragraph
 import (
 	"math"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
 
@@ -555,8 +556,8 @@ func (tw *TextWrapper) BreakTextIntoLines(
 			widthWithSpaces,
 			tw.endLine.StartPos(),
 			tw.endLine.EndPos(),
-			models.Point{X: 0, Y: models.Scalar(tw.height)},
-			models.Point{X: models.Scalar(tw.endLine.Width()), Y: models.Scalar(lineHeight)},
+			models.Point{X: 0, Y: base.Scalar(tw.height)},
+			models.Point{X: base.Scalar(tw.endLine.Width()), Y: base.Scalar(lineHeight)},
 			tw.endLine.metrics,
 			needEllipsis && !tw.hardLineBreak,
 		)
@@ -671,8 +672,8 @@ func (tw *TextWrapper) BreakTextIntoLines(
 			clusterRange,
 			0,
 			0, 0,
-			models.Point{X: 0, Y: models.Scalar(tw.height)},
-			models.Point{X: 0, Y: models.Scalar(tw.endLine.Metrics().Height())},
+			models.Point{X: 0, Y: base.Scalar(tw.height)},
+			models.Point{X: 0, Y: base.Scalar(tw.endLine.Metrics().Height())},
 			tw.endLine.metrics,
 			needEllipsis,
 		)

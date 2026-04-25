@@ -3,6 +3,7 @@ package paragraph
 import (
 	"math"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/models"
 	"golang.org/x/text/unicode/bidi"
 )
@@ -428,10 +429,10 @@ func (p *ParagraphImpl) breakShapedTextIntoLines(maxWidth float32) {
 					trailingSpaces++
 					break
 				}
-				advanceX -= models.Scalar(cluster.Width())
+				advanceX -= base.Scalar(cluster.Width())
 			}
 
-			advanceY := models.Scalar(metrics.Height())
+			advanceY := base.Scalar(metrics.Height())
 			clusterRange := NewClusterRange(0, trailingSpaces)
 			clusterRangeWithGhosts := NewClusterRange(0, len(p.clusters)-1)
 

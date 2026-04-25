@@ -1,6 +1,7 @@
 package shaper
 
 import (
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/impl"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
@@ -19,9 +20,9 @@ type TextBlobBuilderRunHandler struct {
 	clusters            []uint32
 	clusterOffset       int
 	glyphCount          int
-	maxRunAscent        models.Scalar
-	maxRunDescent       models.Scalar
-	maxRunLeading       models.Scalar
+	maxRunAscent        base.Scalar
+	maxRunDescent       base.Scalar
+	maxRunLeading       base.Scalar
 	currentPosition     models.Point
 	currentImplBuffer   *impl.RunBuffer
 	currentShaperBuffer Buffer
@@ -63,7 +64,7 @@ func (h *TextBlobBuilderRunHandler) RunInfo(info RunInfo) {
 		// Estimate metrics (ascent is negative, descent is positive in Skia convention)
 		estimatedAscent := -size * 0.8
 		estimatedDescent := size * 0.2
-		estimatedLeading := models.Scalar(0)
+		estimatedLeading := base.Scalar(0)
 
 		// Track minimums for ascent (negative) and maximums for descent/leading
 		if estimatedAscent < h.maxRunAscent {
@@ -143,8 +144,8 @@ func (h *TextBlobBuilderRunHandler) CommitRunBuffer(info RunInfo) {
 
 		// Copy Positions (flatten Point{X,Y} to [X0,Y0, X1,Y1...])
 		for i, p := range h.currentShaperBuffer.Positions {
-			h.currentImplBuffer.Positions[i*2] = impl.Scalar(p.X)
-			h.currentImplBuffer.Positions[i*2+1] = impl.Scalar(p.Y)
+			h.currentImplBuffer.Positions[i*2] = base.Scalar(p.X)
+			h.currentImplBuffer.Positions[i*2+1] = base.Scalar(p.Y)
 		}
 	}
 

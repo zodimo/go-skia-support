@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-text/typesetting/font"
 	"github.com/go-text/typesetting/font/opentype"
+	"github.com/zodimo/go-skia-support/skia/models"
 	"golang.org/x/image/font/gofont/goregular"
 )
 
@@ -25,7 +26,7 @@ func newTypefaceWithGoRegular(t *testing.T) *Typeface {
 	}
 
 	face := font.NewFace(goFont)
-	return NewTypefaceWithTypefaceFace("Go", FontStyle{Weight: 400, Width: 5, Slant: 0}, face)
+	return NewTypefaceWithTypefaceFace("Go", models.FontStyle{Weight: 400, Width: 5, Slant: 0}, face)
 }
 
 // ============================================================================

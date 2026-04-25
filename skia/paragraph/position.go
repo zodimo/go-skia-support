@@ -1,7 +1,7 @@
 package paragraph
 
 import (
-	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // PositionWithAffinity represents a text position along with information about
@@ -42,14 +42,14 @@ func NewPositionWithAffinityDefault() PositionWithAffinity {
 // Ported from: skia-source/modules/skparagraph/include/DartTypes.h
 type TextBox struct {
 	// Rect is the bounding rectangle for this text box.
-	Rect interfaces.Rect
+	Rect models.Rect
 
 	// Direction indicates the text direction for this box.
 	Direction TextDirection
 }
 
 // NewTextBox creates a new TextBox with the given rect and direction.
-func NewTextBox(rect interfaces.Rect, direction TextDirection) TextBox {
+func NewTextBox(rect models.Rect, direction TextDirection) TextBox {
 	return TextBox{
 		Rect:      rect,
 		Direction: direction,

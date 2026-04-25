@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
@@ -15,15 +16,15 @@ type SkFont interface {
 
 	// Size returns the text size in local coordinate units (EM size).
 	// Default value is 12.
-	Size() Scalar
+	Size() base.Scalar
 
 	// ScaleX returns the text scale on x-axis.
 	// Default value is 1.
-	ScaleX() Scalar
+	ScaleX() base.Scalar
 
 	// SkewX returns the text skew on x-axis.
 	// Default value is 0.
-	SkewX() Scalar
+	SkewX() base.Scalar
 
 	// Edging returns how edge pixels are drawn (aliased, anti-aliased, or subpixel).
 	Edging() enums.FontEdging
@@ -58,15 +59,15 @@ type SkFont interface {
 
 	// SetSize sets the text size in local coordinate units (EM size).
 	// Has no effect if size is not greater than or equal to zero.
-	SetSize(size Scalar)
+	SetSize(size base.Scalar)
 
 	// SetScaleX sets the text scale on x-axis.
 	// Default value is 1.
-	SetScaleX(scale Scalar)
+	SetScaleX(scale base.Scalar)
 
 	// SetSkewX sets the text skew on x-axis.
 	// Default value is 0.
-	SetSkewX(skew Scalar)
+	SetSkewX(skew base.Scalar)
 
 	// SetEdging sets how edge pixels are drawn.
 	SetEdging(edging enums.FontEdging)
@@ -103,12 +104,12 @@ type SkFont interface {
 	// If the slice is empty, returns nil.
 	// The returned slice has the same length as the input slice.
 	// Ported from: SkFont::getWidths
-	GetWidths(glyphs []uint16) []Scalar
+	GetWidths(glyphs []uint16) []base.Scalar
 
 	// MeasureText returns the advance width of text.
 	// The advance is the normal distance to move before drawing additional text.
 	// If bounds is not nil, also returns the bounding box of text.
-	MeasureText(text []byte, encoding enums.TextEncoding, bounds *Rect) Scalar
+	MeasureText(text []byte, encoding enums.TextEncoding, bounds *models.Rect) base.Scalar
 
 	// GetMetrics returns the font metrics for this font.
 	GetMetrics() models.FontMetrics

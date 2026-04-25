@@ -6,15 +6,17 @@ import (
 	"unicode/utf16"
 
 	"github.com/go-text/typesetting/font"
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // Font default values matching C++ Skia
 const (
-	FontDefaultSize   Scalar = 12.0
-	FontDefaultScaleX Scalar = 1.0
-	FontDefaultSkewX  Scalar = 0.0
+	FontDefaultSize   base.Scalar = 12.0
+	FontDefaultScaleX base.Scalar = 1.0
+	FontDefaultSkewX  base.Scalar = 0.0
 )
 
 // Font private flags matching C++ SkFont
@@ -31,10 +33,10 @@ const (
 //
 // Ported from: skia-source/include/core/SkFont.h
 type Font struct {
-	typeface SkTypeface
-	size     Scalar
-	scaleX   Scalar
-	skewX    Scalar
+	typeface interfaces.SkTypeface
+	size     base.Scalar
+	scaleX   base.Scalar
+	skewX    base.Scalar
 	flags    uint8
 	edging   enums.FontEdging
 	hinting  enums.FontHinting
@@ -54,7 +56,7 @@ func NewFont() *Font {
 }
 
 // NewFontWithTypeface creates a new Font with the given typeface.
-func NewFontWithTypeface(tf SkTypeface) *Font {
+func NewFontWithTypeface(tf interfaces.SkTypeface) *Font {
 	f := NewFont()
 	if tf != nil {
 		f.typeface = tf
@@ -63,14 +65,14 @@ func NewFontWithTypeface(tf SkTypeface) *Font {
 }
 
 // NewFontWithTypefaceAndSize creates a new Font with typeface and size.
-func NewFontWithTypefaceAndSize(tf SkTypeface, size Scalar) *Font {
+func NewFontWithTypefaceAndSize(tf interfaces.SkTypeface, size base.Scalar) *Font {
 	f := NewFontWithTypeface(tf)
 	f.SetSize(size)
 	return f
 }
 
 // NewFontWithTypefaceSizeScaleSkew creates a Font with all parameters.
-func NewFontWithTypefaceSizeScaleSkew(tf SkTypeface, size, scaleX, skewX Scalar) *Font {
+func NewFontWithTypefaceSizeScaleSkew(tf interfaces.SkTypeface, size, scaleX, skewX base.Scalar) *Font {
 	f := NewFontWithTypeface(tf)
 	f.SetSize(size)
 	f.scaleX = scaleX
@@ -79,22 +81,22 @@ func NewFontWithTypefaceSizeScaleSkew(tf SkTypeface, size, scaleX, skewX Scalar)
 }
 
 // Typeface returns the SkTypeface.
-func (f *Font) Typeface() SkTypeface {
+func (f *Font) Typeface() interfaces.SkTypeface {
 	return f.typeface
 }
 
 // Size returns the text size in local coordinate units.
-func (f *Font) Size() Scalar {
+func (f *Font) Size() base.Scalar {
 	return f.size
 }
 
 // ScaleX returns the text scale on x-axis.
-func (f *Font) ScaleX() Scalar {
+func (f *Font) ScaleX() base.Scalar {
 	return f.scaleX
 }
 
 // SkewX returns the text skew on x-axis.
-func (f *Font) SkewX() Scalar {
+func (f *Font) SkewX() base.Scalar {
 	return f.skewX
 }
 
@@ -139,7 +141,7 @@ func (f *Font) IsBaselineSnap() bool {
 }
 
 // SetTypeface sets the SkTypeface.
-func (f *Font) SetTypeface(tf SkTypeface) {
+func (f *Font) SetTypeface(tf interfaces.SkTypeface) {
 	if tf == nil {
 		f.typeface = NewDefaultTypeface()
 	} else {
@@ -148,19 +150,19 @@ func (f *Font) SetTypeface(tf SkTypeface) {
 }
 
 // SetSize sets the text size in local coordinate units.
-func (f *Font) SetSize(size Scalar) {
+func (f *Font) SetSize(size base.Scalar) {
 	if size >= 0 {
 		f.size = size
 	}
 }
 
 // SetScaleX sets the text scale on x-axis.
-func (f *Font) SetScaleX(scale Scalar) {
+func (f *Font) SetScaleX(scale base.Scalar) {
 	f.scaleX = scale
 }
 
 // SetSkewX sets the text skew on x-axis.
-func (f *Font) SetSkewX(skew Scalar) {
+func (f *Font) SetSkewX(skew base.Scalar) {
 	f.skewX = skew
 }
 
@@ -216,15 +218,15 @@ func (f *Font) setFlag(flag uint8, set bool) {
 // MeasureText returns the advance width of text.
 // It decodes the input text according to the specified encoding and measures
 // the cumulative advance width of the corresponding glyphs.
-func (f *Font) MeasureText(text []byte, encoding enums.TextEncoding, bounds *Rect) Scalar {
+func (f *Font) MeasureText(text []byte, encoding enums.TextEncoding, bounds *models.Rect) base.Scalar {
 	if len(text) == 0 {
 		if bounds != nil {
-			*bounds = Rect{}
+			*bounds = models.Rect{}
 		}
 		return 0
 	}
 
-	var totalWidth Scalar
+	var totalWidth base.Scalar
 	var runes []rune
 	switch encoding {
 	case enums.TextEncodingUTF8:
@@ -272,7 +274,7 @@ func (f *Font) MeasureText(text []byte, encoding enums.TextEncoding, bounds *Rec
 		glyphs := make([]uint16, len(text)/2)
 		binary.Read(bytes.NewReader(text), binary.LittleEndian, &glyphs)
 
-		var totalWidth Scalar
+		var totalWidth base.Scalar
 		widths := f.GetWidths(glyphs)
 		for _, w := range widths {
 			totalWidth += w
@@ -280,7 +282,7 @@ func (f *Font) MeasureText(text []byte, encoding enums.TextEncoding, bounds *Rec
 
 		if bounds != nil {
 			metrics := f.GetMetrics()
-			*bounds = Rect{
+			*bounds = models.Rect{
 				Left:   0,
 				Top:    metrics.Ascent,
 				Right:  totalWidth,
@@ -305,7 +307,7 @@ func (f *Font) MeasureText(text []byte, encoding enums.TextEncoding, bounds *Rec
 
 	if bounds != nil {
 		metrics := f.GetMetrics()
-		*bounds = Rect{
+		*bounds = models.Rect{
 			Left:   0,
 			Top:    metrics.Ascent, // Ascent is typically negative
 			Right:  totalWidth,
@@ -324,11 +326,11 @@ func (f *Font) UnicharToGlyph(unichar rune) uint16 {
 }
 
 // GetWidths returns the advance widths for a slice of glyph IDs.
-func (f *Font) GetWidths(glyphs []uint16) []Scalar {
+func (f *Font) GetWidths(glyphs []uint16) []base.Scalar {
 	if len(glyphs) == 0 {
 		return nil
 	}
-	widths := make([]Scalar, len(glyphs))
+	widths := make([]base.Scalar, len(glyphs))
 
 	tf, ok := f.typeface.(*Typeface)
 	if !ok || tf.goTextFace == nil {
@@ -341,12 +343,12 @@ func (f *Font) GetWidths(glyphs []uint16) []Scalar {
 	}
 
 	face := tf.goTextFace
-	upem := Scalar(face.Upem())
+	upem := base.Scalar(face.Upem())
 	scale := f.size / upem
 
 	for i, gid := range glyphs {
 		// HorizontalAdvance returns the advance width in font units
-		adv := Scalar(face.HorizontalAdvance(font.GID(gid)))
+		adv := base.Scalar(face.HorizontalAdvance(font.GID(gid)))
 		widths[i] = adv * scale * f.scaleX
 	}
 	return widths
@@ -365,7 +367,7 @@ func (f *Font) GetMetrics() models.FontMetrics {
 	}
 
 	face := tf.goTextFace
-	scale := f.size / Scalar(face.Upem())
+	scale := f.size / base.Scalar(face.Upem())
 
 	extents, ok := face.FontHExtents()
 	if !ok {
@@ -390,9 +392,9 @@ func (f *Font) GetMetrics() models.FontMetrics {
 	// Skia Descent = -Descender (since Descender is negative, result is positive)
 
 	return models.FontMetrics{
-		Ascent:  Scalar(-extents.Ascender) * scale,
-		Descent: Scalar(-extents.Descender) * scale,
-		Leading: Scalar(extents.LineGap) * scale,
+		Ascent:  base.Scalar(-extents.Ascender) * scale,
+		Descent: base.Scalar(-extents.Descender) * scale,
+		Leading: base.Scalar(extents.LineGap) * scale,
 	}
 }
 
@@ -423,4 +425,4 @@ func (f *Font) Equals(other *Font) bool {
 }
 
 // Compile-time interface check
-var _ SkFont = (*Font)(nil)
+var _ interfaces.SkFont = (*Font)(nil)

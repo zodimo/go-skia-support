@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-text/typesetting/font"
 	ot "github.com/go-text/typesetting/font/opentype"
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
@@ -24,7 +25,7 @@ func nextTypefaceID() uint32 {
 //
 // Ported from: skia-source/include/core/SkTypeface.h
 type Typeface struct {
-	style      FontStyle
+	style      models.FontStyle
 	familyName string
 	uniqueID   uint32
 	fixedPitch bool
@@ -34,7 +35,7 @@ type Typeface struct {
 // NewDefaultTypeface creates a new typeface with default style.
 func NewDefaultTypeface() *Typeface {
 	return &Typeface{
-		style:      FontStyle{Weight: 400, Width: 5, Slant: 0}, // Normal
+		style:      models.FontStyle{Weight: 400, Width: 5, Slant: 0}, // Normal
 		familyName: "",
 		uniqueID:   nextTypefaceID(),
 		fixedPitch: false,
@@ -42,7 +43,7 @@ func NewDefaultTypeface() *Typeface {
 }
 
 // NewTypeface creates a new typeface with the given family name and style.
-func NewTypeface(familyName string, style FontStyle) *Typeface {
+func NewTypeface(familyName string, style models.FontStyle) *Typeface {
 	return &Typeface{
 		style:      style,
 		familyName: familyName,
@@ -52,7 +53,7 @@ func NewTypeface(familyName string, style FontStyle) *Typeface {
 }
 
 // NewTypefaceWithTypefaceFace creates a new typeface with a go-text/typesetting Face.
-func NewTypefaceWithTypefaceFace(familyName string, style FontStyle, face *font.Face) *Typeface {
+func NewTypefaceWithTypefaceFace(familyName string, style models.FontStyle, face *font.Face) *Typeface {
 	return &Typeface{
 		style:      style,
 		familyName: familyName,
@@ -63,7 +64,7 @@ func NewTypefaceWithTypefaceFace(familyName string, style FontStyle, face *font.
 }
 
 // NewTypefaceWithOptions creates a new typeface with all options.
-func NewTypefaceWithOptions(familyName string, style FontStyle, fixedPitch bool) *Typeface {
+func NewTypefaceWithOptions(familyName string, style models.FontStyle, fixedPitch bool) *Typeface {
 	return &Typeface{
 		style:      style,
 		familyName: familyName,
@@ -78,7 +79,7 @@ func (t *Typeface) GoTextFace() *font.Face {
 }
 
 // FontStyle returns the typeface's intrinsic style attributes.
-func (t *Typeface) FontStyle() FontStyle {
+func (t *Typeface) FontStyle() models.FontStyle {
 	return t.style
 }
 
@@ -175,7 +176,7 @@ func (t *Typeface) GetGlyphAdvance(glyphID uint16) int16 {
 
 // GetGlyphBounds returns the bounding box for a glyph in font units.
 // This is the raw value from the font tables, not scaled by font size.
-func (t *Typeface) GetGlyphBounds(glyphID uint16) interfaces.Rect {
+func (t *Typeface) GetGlyphBounds(glyphID uint16) models.Rect {
 	if t.goTextFace != nil {
 		extents, ok := t.goTextFace.GlyphExtents(font.GID(glyphID))
 		if ok {
@@ -189,15 +190,15 @@ func (t *Typeface) GetGlyphBounds(glyphID uint16) interfaces.Rect {
 			// Skia uses Y-down, so we negate YBearing for Top.
 			// For Bottom, we want Top + |Height|. Since Height is negative:
 			// Bottom = -YBearing - Height
-			return interfaces.Rect{
-				Left:   Scalar(extents.XBearing),
-				Top:    Scalar(-extents.YBearing),
-				Right:  Scalar(extents.XBearing) + Scalar(extents.Width),
-				Bottom: Scalar(-extents.YBearing) - Scalar(extents.Height),
+			return models.Rect{
+				Left:   base.Scalar(extents.XBearing),
+				Top:    base.Scalar(-extents.YBearing),
+				Right:  base.Scalar(extents.XBearing) + base.Scalar(extents.Width),
+				Bottom: base.Scalar(-extents.YBearing) - base.Scalar(extents.Height),
 			}
 		}
 	}
-	return interfaces.Rect{}
+	return models.Rect{}
 }
 
 // GetGlyphPath returns the outline path for a glyph.
@@ -219,19 +220,19 @@ func (t *Typeface) GetGlyphPath(glyphID uint16) (interfaces.SkPath, error) {
 	for _, seg := range outline.Segments {
 		switch seg.Op {
 		case ot.SegmentOpMoveTo:
-			path.MoveTo(Scalar(seg.Args[0].X), Scalar(seg.Args[0].Y))
+			path.MoveTo(base.Scalar(seg.Args[0].X), base.Scalar(seg.Args[0].Y))
 		case ot.SegmentOpLineTo:
-			path.LineTo(Scalar(seg.Args[0].X), Scalar(seg.Args[0].Y))
+			path.LineTo(base.Scalar(seg.Args[0].X), base.Scalar(seg.Args[0].Y))
 		case ot.SegmentOpQuadTo:
 			path.QuadTo(
-				Scalar(seg.Args[0].X), Scalar(seg.Args[0].Y),
-				Scalar(seg.Args[1].X), Scalar(seg.Args[1].Y),
+				base.Scalar(seg.Args[0].X), base.Scalar(seg.Args[0].Y),
+				base.Scalar(seg.Args[1].X), base.Scalar(seg.Args[1].Y),
 			)
 		case ot.SegmentOpCubeTo:
 			path.CubicTo(
-				Scalar(seg.Args[0].X), Scalar(seg.Args[0].Y),
-				Scalar(seg.Args[1].X), Scalar(seg.Args[1].Y),
-				Scalar(seg.Args[2].X), Scalar(seg.Args[2].Y),
+				base.Scalar(seg.Args[0].X), base.Scalar(seg.Args[0].Y),
+				base.Scalar(seg.Args[1].X), base.Scalar(seg.Args[1].Y),
+				base.Scalar(seg.Args[2].X), base.Scalar(seg.Args[2].Y),
 			)
 		}
 	}
@@ -239,4 +240,4 @@ func (t *Typeface) GetGlyphPath(glyphID uint16) (interfaces.SkPath, error) {
 }
 
 // Compile-time interface check
-var _ SkTypeface = (*Typeface)(nil)
+var _ interfaces.SkTypeface = (*Typeface)(nil)

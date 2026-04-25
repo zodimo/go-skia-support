@@ -3,6 +3,7 @@ package impl
 import (
 	"math"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
@@ -13,10 +14,10 @@ import (
 // Color4f stores RGBA as floats in [0, 1] range
 func Color4fFromColor(color uint32) models.Color4f {
 	// Extract ARGB components
-	a := Scalar((color>>24)&0xFF) / 255.0
-	r := Scalar((color>>16)&0xFF) / 255.0
-	g := Scalar((color>>8)&0xFF) / 255.0
-	b := Scalar(color&0xFF) / 255.0
+	a := base.Scalar((color>>24)&0xFF) / 255.0
+	r := base.Scalar((color>>16)&0xFF) / 255.0
+	g := base.Scalar((color>>8)&0xFF) / 255.0
+	b := base.Scalar(color&0xFF) / 255.0
 	// Return as RGBA Color4f
 	return models.Color4f{R: r, G: g, B: b, A: a}
 }
@@ -28,7 +29,7 @@ func Color4fFromColor(color uint32) models.Color4f {
 // Otherwise, hairlines default to 1.0.
 // For hairlines, the width is determined in device space, so matrixScale should be
 // the maximum scale factor from the transformation matrix (e.g., from Matrix.GetMaxScale()).
-func GetInflationRadiusForStroke(join enums.PaintJoin, miterLimit Scalar, cap enums.PaintCap, strokeWidth Scalar, matrixScale ...Scalar) Scalar {
+func GetInflationRadiusForStroke(join enums.PaintJoin, miterLimit base.Scalar, cap enums.PaintCap, strokeWidth base.Scalar, matrixScale ...base.Scalar) base.Scalar {
 	if strokeWidth < 0 { // fill
 		return 0
 	} else if strokeWidth == 0 {
@@ -42,14 +43,14 @@ func GetInflationRadiusForStroke(join enums.PaintJoin, miterLimit Scalar, cap en
 	}
 
 	// Since we're stroked, outset the rect by the radius (and join type, caps)
-	multiplier := Scalar(1.0)
+	multiplier := base.Scalar(1.0)
 	if join == enums.PaintJoinMiter {
 		if miterLimit > multiplier {
 			multiplier = miterLimit
 		}
 	}
 	if cap == enums.PaintCapSquare {
-		sqrt2 := Scalar(math.Sqrt2)
+		sqrt2 := base.Scalar(math.Sqrt2)
 		if sqrt2 > multiplier {
 			multiplier = sqrt2
 		}

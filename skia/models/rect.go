@@ -1,8 +1,10 @@
 package models
 
+import "github.com/zodimo/go-skia-support/skia/base"
+
 // Rect represents a rectangle
 type Rect struct {
-	Left, Top, Right, Bottom Scalar
+	Left, Top, Right, Bottom base.Scalar
 }
 
 // IsSorted returns true if the rectangle is sorted (Left <= Right and Top <= Bottom)
@@ -15,7 +17,7 @@ func (r Rect) IsSorted() bool {
 // If dx is positive, the returned rectangle is wider.
 // If dy is negative, the returned rectangle is shorter.
 // If dy is positive, the returned rectangle is taller.
-func (r Rect) MakeOutset(dx, dy Scalar) Rect {
+func (r Rect) MakeOutset(dx, dy base.Scalar) Rect {
 	return Rect{
 		Left:   r.Left - dx,
 		Top:    r.Top - dy,

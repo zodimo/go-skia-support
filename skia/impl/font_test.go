@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"testing"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 func TestNewFont(t *testing.T) {
@@ -34,7 +36,7 @@ func TestNewFont(t *testing.T) {
 }
 
 func TestFontWithTypeface(t *testing.T) {
-	tf := NewTypeface("TestFont", FontStyle{Weight: 400, Width: 5, Slant: 0})
+	tf := NewTypeface("TestFont", models.FontStyle{Weight: 400, Width: 5, Slant: 0})
 	f := NewFontWithTypeface(tf)
 	if f.Typeface() != tf {
 		t.Error("Font should have the typeface that was set")
@@ -42,7 +44,7 @@ func TestFontWithTypeface(t *testing.T) {
 }
 
 func TestFontWithTypefaceAndSize(t *testing.T) {
-	tf := NewTypeface("TestFont", FontStyle{Weight: 400, Width: 5, Slant: 0})
+	tf := NewTypeface("TestFont", models.FontStyle{Weight: 400, Width: 5, Slant: 0})
 	f := NewFontWithTypefaceAndSize(tf, 24.0)
 	if f.Size() != 24.0 {
 		t.Errorf("Expected size 24.0, got %v", f.Size())
@@ -168,7 +170,7 @@ func TestFontMeasureText(t *testing.T) {
 	}
 
 	// Test with bounds
-	var bounds Rect
+	var bounds models.Rect
 	width2 := f.MeasureText(text, enums.TextEncodingUTF8, &bounds)
 	if width != width2 {
 		t.Errorf("Width should be same with or without bounds: %v vs %v", width, width2)
@@ -221,9 +223,9 @@ func TestFontEquals(t *testing.T) {
 // their properties correctly (equivalent to serialize/deserialize round-trip in C++).
 func TestFontFlatten(t *testing.T) {
 	// Test values from C++ FontTest.cpp lines 75-90
-	sizes := []Scalar{0, 0.001, 1, 10, 10.001, 100000.01}
-	scalesX := []Scalar{-5, 0, 1, 5}
-	skewsX := []Scalar{-5, 0, 5}
+	sizes := []base.Scalar{0, 0.001, 1, 10, 10.001, 100000.01}
+	scalesX := []base.Scalar{-5, 0, 1, 5}
+	skewsX := []base.Scalar{-5, 0, 5}
 	edgings := []enums.FontEdging{
 		enums.FontEdgingAlias,
 		enums.FontEdgingSubpixelAntiAlias,
@@ -356,7 +358,7 @@ func TestFontGetWidths(t *testing.T) {
 	}
 
 	// Verify fallback width: 20 * 0.6 = 12
-	expected := Scalar(12.0)
+	expected := base.Scalar(12.0)
 	for i, w := range widths {
 		if w != expected {
 			t.Errorf("Width %d: expected %v, got %v", i, expected, w)
@@ -393,7 +395,7 @@ func TestFontMeasureTextEncodings(t *testing.T) {
 	f := NewFont()
 	f.SetSize(10.0) // Char width = 10 * 0.6 = 6.0
 	f.SetScaleX(1.0)
-	expectedWidthPerChar := Scalar(6.0)
+	expectedWidthPerChar := base.Scalar(6.0)
 
 	tests := []struct {
 		name      string
@@ -457,7 +459,7 @@ func TestFontMeasureTextEncodings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			width := f.MeasureText(tt.input, tt.encoding, nil)
-			expected := expectedWidthPerChar * Scalar(tt.wantChars)
+			expected := expectedWidthPerChar * base.Scalar(tt.wantChars)
 			// Allow small float epsilon if needed, but here it's simple multiplication
 			if width != expected {
 				t.Errorf("MeasureText() = %v, want %v", width, expected)

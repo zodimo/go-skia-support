@@ -1,6 +1,7 @@
 package paragraph
 
 import (
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
@@ -58,7 +59,7 @@ func (p *ParagraphImpl) GetRectsForRange(start, end int, rectHeightStyle RectHei
 
 	if len(p.text) == 0 {
 		if start == 0 && end > 0 {
-			rect := models.Rect{Left: 0, Top: 0, Right: 0, Bottom: models.Scalar(p.height)}
+			rect := models.Rect{Left: 0, Top: 0, Right: 0, Bottom: base.Scalar(p.height)}
 			results = append(results, NewTextBox(rect, p.paragraphStyle.TextDirection))
 		}
 		return results
@@ -90,7 +91,7 @@ func (p *ParagraphImpl) GetRectsForRange(start, end int, rectHeightStyle RectHei
 		}
 		// Calculate line bounds as approximation
 		rect := models.Rect{
-			Left:   line.offset.X + models.Scalar(line.shift),
+			Left:   line.offset.X + base.Scalar(line.shift),
 			Top:    line.offset.Y,
 			Right:  line.offset.X + line.advance.X,
 			Bottom: line.offset.Y + line.advance.Y,
@@ -147,10 +148,10 @@ func (p *ParagraphImpl) GetRectsForPlaceholders() []TextBox {
 				}
 
 				rect := models.Rect{
-					Left:   models.Scalar(left),
-					Top:    models.Scalar(top),
-					Right:  models.Scalar(left) + models.Scalar(style.Width),
-					Bottom: models.Scalar(top) + models.Scalar(style.Height),
+					Left:   base.Scalar(left),
+					Top:    base.Scalar(top),
+					Right:  base.Scalar(left) + base.Scalar(style.Width),
+					Bottom: base.Scalar(top) + base.Scalar(style.Height),
 				}
 				boxes = append(boxes, NewTextBox(rect, p.paragraphStyle.TextDirection))
 			}
@@ -350,8 +351,8 @@ func (p *ParagraphImpl) GetGlyphClusterAt(codeUnitIndex int, glyphInfo *GlyphClu
 		if cluster.Contains(codeUnitIndex) {
 			if glyphInfo != nil {
 				rect := models.Rect{
-					Left:  models.Scalar(cluster.StartPos()),
-					Right: models.Scalar(cluster.EndPos()),
+					Left:  base.Scalar(cluster.StartPos()),
+					Right: base.Scalar(cluster.EndPos()),
 				}
 				*glyphInfo = GlyphClusterInfo{
 					Bounds:    rect,
@@ -480,7 +481,7 @@ func (p *ParagraphImpl) Visit(visitor Visitor) {
 
 			info := VisitorInfo{
 				Font:    run.Font(),
-				Origin:  models.Point{X: line.offset.X + models.Scalar(line.shift), Y: line.offset.Y},
+				Origin:  models.Point{X: line.offset.X + base.Scalar(line.shift), Y: line.offset.Y},
 				Advance: float32(run.Advance().X),
 				Glyphs:  run.Glyphs(),
 			}
@@ -508,7 +509,7 @@ func (p *ParagraphImpl) ExtendedVisit(visitor ExtendedVisitor) {
 			info := ExtendedVisitorInfo{
 				VisitorInfo: VisitorInfo{
 					Font:    run.Font(),
-					Origin:  models.Point{X: line.offset.X + models.Scalar(line.shift), Y: line.offset.Y},
+					Origin:  models.Point{X: line.offset.X + base.Scalar(line.shift), Y: line.offset.Y},
 					Advance: float32(run.Advance().X),
 					Glyphs:  run.Glyphs(),
 				},

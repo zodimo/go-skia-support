@@ -2,6 +2,7 @@ package impl
 
 import (
 	"github.com/zodimo/go-skia-support/skia/base"
+	"github.com/zodimo/go-skia-support/skia/interfaces"
 )
 
 // Tolerance constants for floating-point comparisons.
@@ -35,7 +36,7 @@ func NearlyEqualScalar(a, b base.Scalar) bool {
 // Returns true if all 9 matrix elements are nearly equal within tolerance.
 //
 // Ported from: skia-source/tests/MatrixTest.cpp:nearly_equal()
-func NearlyEqual(a, b SkMatrix) bool {
+func NearlyEqual(a, b interfaces.SkMatrix) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
@@ -57,7 +58,7 @@ func NearlyEqual(a, b SkMatrix) bool {
 //	| 0 0 1 |
 //
 // Ported from: skia-source/tests/MatrixTest.cpp:is_identity()
-func IsIdentity(m SkMatrix) bool {
+func IsIdentity(m interfaces.SkMatrix) bool {
 	if m == nil {
 		return false
 	}
@@ -68,7 +69,7 @@ func IsIdentity(m SkMatrix) bool {
 
 // IsFiniteMatrix checks if all matrix elements are finite.
 // Uses the existing IsFinite() function from path_helper.go for scalar checks.
-func IsFiniteMatrix(m SkMatrix) bool {
+func IsFiniteMatrix(m interfaces.SkMatrix) bool {
 	if m == nil {
 		return false
 	}

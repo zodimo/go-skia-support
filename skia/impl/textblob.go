@@ -3,7 +3,10 @@ package impl
 import (
 	"sync/atomic"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // Global unique ID counter for text blobs
@@ -19,10 +22,10 @@ type GlyphID uint16
 
 // TextBlobRun represents a single run of glyphs with the same font.
 type TextBlobRun struct {
-	Font      SkFont    // Font for this run
-	Glyphs    []GlyphID // Glyph indices
-	Positions []Point   // Position for each glyph
-	RSXforms  []RSXform // RSXform for each glyph (optional, mutually exclusive with Positions)
+	Font      interfaces.SkFont // Font for this run
+	Glyphs    []GlyphID         // Glyph indices
+	Positions []models.Point    // Position for each glyph
+	RSXforms  []RSXform         // RSXform for each glyph (optional, mutually exclusive with Positions)
 }
 
 // TextBlob combines multiple text runs into an immutable container.
@@ -31,12 +34,12 @@ type TextBlobRun struct {
 // Ported from: skia-source/include/core/SkTextBlob.h
 type TextBlob struct {
 	runs     []TextBlobRun
-	bounds   Rect
+	bounds   models.Rect
 	uniqueID uint32
 }
 
 // Bounds returns the conservative bounding box.
-func (tb *TextBlob) Bounds() Rect {
+func (tb *TextBlob) Bounds() models.Rect {
 	return tb.bounds
 }
 
@@ -60,12 +63,12 @@ func (tb *TextBlob) Run(index int) *TextBlobRun {
 
 // MakeTextBlobFromString creates a TextBlob from a string.
 // This is a convenience function that uses UTF-8 encoding.
-func MakeTextBlobFromString(text string, font SkFont) *TextBlob {
+func MakeTextBlobFromString(text string, font interfaces.SkFont) *TextBlob {
 	return MakeTextBlobFromText([]byte(text), enums.TextEncodingUTF8, font)
 }
 
 // MakeTextBlobFromText creates a TextBlob from text bytes with the given encoding.
-func MakeTextBlobFromText(text []byte, encoding enums.TextEncoding, font SkFont) *TextBlob {
+func MakeTextBlobFromText(text []byte, encoding enums.TextEncoding, font interfaces.SkFont) *TextBlob {
 	if len(text) == 0 || font == nil {
 		return nil
 	}
@@ -96,7 +99,7 @@ func MakeTextBlobFromText(text []byte, encoding enums.TextEncoding, font SkFont)
 }
 
 // MakeTextBlobFromRSXform creates a TextBlob from text, RSXforms, and font.
-func MakeTextBlobFromRSXform(text []byte, encoding enums.TextEncoding, rsxforms []RSXform, font SkFont) *TextBlob {
+func MakeTextBlobFromRSXform(text []byte, encoding enums.TextEncoding, rsxforms []RSXform, font interfaces.SkFont) *TextBlob {
 	if len(text) == 0 || font == nil || len(rsxforms) == 0 {
 		return nil
 	}
@@ -189,15 +192,15 @@ func textToGlyphs(text []byte, encoding enums.TextEncoding) []GlyphID {
 // calculateGlyphPositions calculates positions for each glyph.
 // This is a simplified implementation using estimated advances.
 // A real implementation would use actual glyph metrics.
-func calculateGlyphPositions(glyphs []GlyphID, font SkFont, startX, startY Scalar) []Point {
-	positions := make([]Point, len(glyphs))
+func calculateGlyphPositions(glyphs []GlyphID, font interfaces.SkFont, startX, startY base.Scalar) []models.Point {
+	positions := make([]models.Point, len(glyphs))
 	x := startX
 
 	// Estimate advance width as 0.6 * font size (reasonable average for proportional fonts)
 	advance := font.Size() * 0.6 * font.ScaleX()
 
 	for i := range glyphs {
-		positions[i] = Point{X: x, Y: startY}
+		positions[i] = models.Point{X: x, Y: startY}
 		x += advance
 	}
 
@@ -205,9 +208,9 @@ func calculateGlyphPositions(glyphs []GlyphID, font SkFont, startX, startY Scala
 }
 
 // calculateTextBounds calculates the bounding box for glyphs at their positions.
-func calculateTextBounds(glyphs []GlyphID, positions []Point, font SkFont) Rect {
+func calculateTextBounds(glyphs []GlyphID, positions []models.Point, font interfaces.SkFont) models.Rect {
 	if len(glyphs) == 0 {
-		return Rect{}
+		return models.Rect{}
 	}
 
 	// Estimate bounds based on font size and glyph count
@@ -234,7 +237,7 @@ func calculateTextBounds(glyphs []GlyphID, positions []Point, font SkFont) Rect 
 		}
 	}
 
-	return Rect{
+	return models.Rect{
 		Left:   minX,
 		Top:    minY,
 		Right:  maxX,
@@ -243,9 +246,9 @@ func calculateTextBounds(glyphs []GlyphID, positions []Point, font SkFont) Rect 
 }
 
 // calculateTextBoundsRSXform calculates bounds for RSXform text.
-func calculateTextBoundsRSXform(glyphs []GlyphID, xforms []RSXform, font SkFont) Rect {
+func calculateTextBoundsRSXform(glyphs []GlyphID, xforms []RSXform, font interfaces.SkFont) models.Rect {
 	if len(glyphs) == 0 {
-		return Rect{}
+		return models.Rect{}
 	}
 
 	// Just an approximation for now using font size and transform
@@ -257,15 +260,15 @@ func calculateTextBoundsRSXform(glyphs []GlyphID, xforms []RSXform, font SkFont)
 	advance := size * 0.6 // Simplified advance
 
 	// Local glyph rect
-	localRect := []Point{
+	localRect := []models.Point{
 		{X: 0, Y: -ascent},
 		{X: advance, Y: -ascent},
 		{X: advance, Y: descent},
 		{X: 0, Y: descent},
 	}
 
-	minX, minY := Scalar(1e9), Scalar(1e9)
-	maxX, maxY := Scalar(-1e9), Scalar(-1e9)
+	minX, minY := base.Scalar(1e9), base.Scalar(1e9)
+	maxX, maxY := base.Scalar(-1e9), base.Scalar(-1e9)
 
 	for i := range glyphs {
 		xform := xforms[i]
@@ -297,8 +300,8 @@ func calculateTextBoundsRSXform(glyphs []GlyphID, xforms []RSXform, font SkFont)
 		}
 	}
 
-	return Rect{Left: minX, Top: minY, Right: maxX, Bottom: maxY}
+	return models.Rect{Left: minX, Top: minY, Right: maxX, Bottom: maxY}
 }
 
 // Compile-time interface check
-var _ SkTextBlob = (*TextBlob)(nil)
+var _ interfaces.SkTextBlob = (*TextBlob)(nil)

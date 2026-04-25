@@ -6,6 +6,8 @@ import (
 
 	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // TestPathFirstDirectionToConvexity tests the pathFirstDirectionToConvexity helper function
@@ -228,11 +230,11 @@ func TestValidUnitDivide(t *testing.T) {
 // Ported from: skia-source/src/core/SkGeometry.cpp:SkFindUnitQuadRoots()
 func TestFindUnitQuadRoots(t *testing.T) {
 	tests := []struct {
-		name           string
-		A, B, C        base.Scalar
-		expectedCount  int
-		expectedRoots  []base.Scalar
-		description    string
+		name          string
+		A, B, C       base.Scalar
+		expectedCount int
+		expectedRoots []base.Scalar
+		description   string
 	}{
 		// Linear case (A == 0)
 		{
@@ -409,53 +411,53 @@ func TestFindQuadExtrema(t *testing.T) {
 func TestEvalQuadAt(t *testing.T) {
 	tests := []struct {
 		name      string
-		src       []Point
+		src       []models.Point
 		t         base.Scalar
-		expected  Point
+		expected  models.Point
 		tolerance base.Scalar
 	}{
 		{
 			name: "evaluate at t=0",
-			src: []Point{
+			src: []models.Point{
 				{X: 0, Y: 0},
 				{X: 1, Y: 1},
 				{X: 2, Y: 0},
 			},
 			t:         0.0,
-			expected:  Point{X: 0, Y: 0},
+			expected:  models.Point{X: 0, Y: 0},
 			tolerance: ScalarTolerance,
 		},
 		{
 			name: "evaluate at t=1",
-			src: []Point{
+			src: []models.Point{
 				{X: 0, Y: 0},
 				{X: 1, Y: 1},
 				{X: 2, Y: 0},
 			},
 			t:         1.0,
-			expected:  Point{X: 2, Y: 0},
+			expected:  models.Point{X: 2, Y: 0},
 			tolerance: ScalarTolerance,
 		},
 		{
 			name: "evaluate at t=0.5",
-			src: []Point{
+			src: []models.Point{
 				{X: 0, Y: 0},
 				{X: 1, Y: 1},
 				{X: 2, Y: 0},
 			},
 			t:         0.5,
-			expected:  Point{X: 1, Y: 0.5},
+			expected:  models.Point{X: 1, Y: 0.5},
 			tolerance: ScalarTolerance,
 		},
 		{
 			name: "evaluate at t=0.25",
-			src: []Point{
+			src: []models.Point{
 				{X: 0, Y: 0},
 				{X: 2, Y: 2},
 				{X: 4, Y: 0},
 			},
 			t:         0.25,
-			expected:  Point{X: 1.0, Y: 0.75}, // (1-0.25)^2*0 + 2*(1-0.25)*0.25*2 + 0.25^2*4 = 0.75 + 0.25 = 1.0
+			expected:  models.Point{X: 1.0, Y: 0.75}, // (1-0.25)^2*0 + 2*(1-0.25)*0.25*2 + 0.25^2*4 = 0.75 + 0.25 = 1.0
 			tolerance: ScalarTolerance,
 		},
 	}
@@ -478,42 +480,42 @@ func TestEvalQuadAt(t *testing.T) {
 func TestEvalCubicAt(t *testing.T) {
 	tests := []struct {
 		name     string
-		src      []Point
+		src      []models.Point
 		t        base.Scalar
-		expected Point
+		expected models.Point
 	}{
 		{
 			name: "evaluate at t=0",
-			src: []Point{
+			src: []models.Point{
 				{X: 0, Y: 0},
 				{X: 1, Y: 1},
 				{X: 2, Y: 1},
 				{X: 3, Y: 0},
 			},
 			t:        0.0,
-			expected: Point{X: 0, Y: 0},
+			expected: models.Point{X: 0, Y: 0},
 		},
 		{
 			name: "evaluate at t=1",
-			src: []Point{
+			src: []models.Point{
 				{X: 0, Y: 0},
 				{X: 1, Y: 1},
 				{X: 2, Y: 1},
 				{X: 3, Y: 0},
 			},
 			t:        1.0,
-			expected: Point{X: 3, Y: 0},
+			expected: models.Point{X: 3, Y: 0},
 		},
 		{
 			name: "evaluate at t=0.5",
-			src: []Point{
+			src: []models.Point{
 				{X: 0, Y: 0},
 				{X: 1, Y: 1},
 				{X: 2, Y: 1},
 				{X: 3, Y: 0},
 			},
 			t:        0.5,
-			expected: Point{X: 1.5, Y: 0.75},
+			expected: models.Point{X: 1.5, Y: 0.75},
 		},
 	}
 
@@ -535,43 +537,43 @@ func TestEvalCubicAt(t *testing.T) {
 func TestEvalConicAt(t *testing.T) {
 	tests := []struct {
 		name     string
-		src      []Point
+		src      []models.Point
 		w        base.Scalar
 		t        base.Scalar
-		expected Point
+		expected models.Point
 	}{
 		{
 			name: "evaluate at t=0",
-			src: []Point{
+			src: []models.Point{
 				{X: 0, Y: 0},
 				{X: 1, Y: 1},
 				{X: 2, Y: 0},
 			},
 			w:        base.ScalarRoot2Over2,
 			t:        0.0,
-			expected: Point{X: 0, Y: 0},
+			expected: models.Point{X: 0, Y: 0},
 		},
 		{
 			name: "evaluate at t=1",
-			src: []Point{
+			src: []models.Point{
 				{X: 0, Y: 0},
 				{X: 1, Y: 1},
 				{X: 2, Y: 0},
 			},
 			w:        base.ScalarRoot2Over2,
 			t:        1.0,
-			expected: Point{X: 2, Y: 0},
+			expected: models.Point{X: 2, Y: 0},
 		},
 		{
 			name: "evaluate at t=0.5",
-			src: []Point{
+			src: []models.Point{
 				{X: 0, Y: 0},
 				{X: 1, Y: 1},
 				{X: 2, Y: 0},
 			},
 			w:        1.0, // Circular arc weight
 			t:        0.5,
-			expected: Point{X: 1, Y: 0.5},
+			expected: models.Point{X: 1, Y: 0.5},
 		},
 	}
 
@@ -774,7 +776,7 @@ func TestIsFinite(t *testing.T) {
 func TestAffectsAlphaColorFilter(t *testing.T) {
 	tests := []struct {
 		name     string
-		cf       ColorFilter
+		cf       interfaces.ColorFilter
 		expected bool
 	}{
 		{
@@ -808,7 +810,7 @@ func TestAffectsAlphaColorFilter(t *testing.T) {
 func TestAffectsAlphaImageFilter(t *testing.T) {
 	tests := []struct {
 		name     string
-		imf      ImageFilter
+		imf      interfaces.ImageFilter
 		expected bool
 	}{
 		{
@@ -832,4 +834,3 @@ func TestAffectsAlphaImageFilter(t *testing.T) {
 		})
 	}
 }
-

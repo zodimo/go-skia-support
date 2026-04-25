@@ -3,8 +3,8 @@ package impl
 import (
 	"testing"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
-	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
 
@@ -135,7 +135,7 @@ func TestPath_AddRect(t *testing.T) {
 func TestPath_AddCircle(t *testing.T) {
 	// Test circle with different radii
 	t.Run("add_circle_radii", func(t *testing.T) {
-		radii := []interfaces.Scalar{1, 5, 10, 20, 50, 100}
+		radii := []base.Scalar{1, 5, 10, 20, 50, 100}
 		for _, radius := range radii {
 			path := NewSkPath(enums.PathFillTypeDefault)
 			path.AddCircle(0, 0, radius, enums.PathDirectionCW)
@@ -158,8 +158,8 @@ func TestPath_AddCircle(t *testing.T) {
 
 	// Test circle with different directions
 	t.Run("add_circle_directions", func(t *testing.T) {
-		radius := interfaces.Scalar(10)
-		cx, cy := interfaces.Scalar(0), interfaces.Scalar(0)
+		radius := base.Scalar(10)
+		cx, cy := base.Scalar(0), base.Scalar(0)
 
 		// Test CW direction
 		pathCW := NewSkPath(enums.PathFillTypeDefault)
@@ -183,7 +183,7 @@ func TestPath_AddCircle(t *testing.T) {
 	// Test circle at different positions
 	t.Run("add_circle_positions", func(t *testing.T) {
 		testCases := []struct {
-			cx, cy, radius interfaces.Scalar
+			cx, cy, radius base.Scalar
 		}{
 			{0, 0, 10},
 			{10, 10, 20},
@@ -482,4 +482,3 @@ func TestPath_AddRRect(t *testing.T) {
 		}
 	})
 }
-

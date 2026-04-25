@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
@@ -26,7 +27,7 @@ import (
 //	// Implement all other SkCanvas methods...
 //
 //	// Now you can use helper functions that accept SkCanvas:
-//	func DrawRoundedButton(canvas SkCanvas, rect Rect, radius Scalar, paint SkPaint) {
+//	func DrawRoundedButton(canvas SkCanvas, rect Rect, radius base.Scalar, paint SkPaint) {
 //		rrect := models.NewRRect(rect, radius, radius, radius, radius)
 //		canvas.DrawRRect(rrect, paint)
 //	}
@@ -66,7 +67,7 @@ type SkCanvas interface {
 	// Rectangle coordinates are transformed by the current matrix before drawing.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawRect() - line 1406
-	DrawRect(rect Rect, paint SkPaint)
+	DrawRect(rect models.Rect, paint SkPaint)
 
 	// DrawRRect draws a rounded rectangle with up to eight corner radii (four corners, each with x and y radii).
 	// PaintStyle determines if rrect is stroked or filled.
@@ -75,7 +76,7 @@ type SkCanvas interface {
 	// RRect is transformed by the current matrix before drawing.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawRRect() - line 1457
-	DrawRRect(rrect RRect, paint SkPaint)
+	DrawRRect(rrect models.RRect, paint SkPaint)
 
 	// DrawDRRect draws a "donut" shape - the area between outer and inner rounded rectangles.
 	// outer must contain inner or drawing behavior is undefined.
@@ -83,7 +84,7 @@ type SkCanvas interface {
 	// Both Rects are transformed by the current matrix before drawing.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawDRRect() - line 1478
-	DrawDRRect(outer RRect, inner RRect, paint SkPaint)
+	DrawDRRect(outer models.RRect, inner models.RRect, paint SkPaint)
 
 	// DrawOval draws an oval (ellipse) bounded by the specified rectangle.
 	// PaintStyle determines if oval is stroked or filled. If stroked, StrokeWidth describes line thickness.
@@ -91,7 +92,7 @@ type SkCanvas interface {
 	// Empty rectangles (width or height <= 0) result in no drawing.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawOval() - line 1443
-	DrawOval(oval Rect, paint SkPaint)
+	DrawOval(oval models.Rect, paint SkPaint)
 
 	// DrawArc draws an arc that is part of an oval bounded by oval, sweeping from startAngle to startAngle + sweepAngle.
 	// Angles are in degrees. Zero degrees places start point at the right middle edge of oval (3 o'clock position).
@@ -102,7 +103,7 @@ type SkCanvas interface {
 	// Oval bounds are transformed by the current matrix before drawing.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawArc() - line 1527
-	DrawArc(oval Rect, startAngle Scalar, sweepAngle Scalar, useCenter bool, paint SkPaint)
+	DrawArc(oval models.Rect, startAngle base.Scalar, sweepAngle base.Scalar, useCenter bool, paint SkPaint)
 
 	// DrawPath draws a path containing one or more contours, each of which may be open or closed.
 	// If filled: PathFillType determines whether path contour describes inside or outside of fill.
@@ -126,27 +127,27 @@ type SkCanvas interface {
 	// Points are transformed by the current matrix before drawing.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawPoints() - line 1330
-	DrawPoints(mode enums.PointMode, points []Point, paint SkPaint)
+	DrawPoints(mode enums.PointMode, points []models.Point, paint SkPaint)
 
 	// DrawLine draws a single line segment between two points.
 	// This is a convenience wrapper around DrawPoints(PointModeLines, ...).
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawLine() - line 1392
-	DrawLine(p0, p1 Point, paint SkPaint)
+	DrawLine(p0, p1 models.Point, paint SkPaint)
 
 	// DrawCircle draws a circle centered at center with the given radius.
 	// This is a convenience wrapper around DrawOval.
 	// If radius is <= 0, nothing is drawn.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawCircle() - line 1503
-	DrawCircle(center Point, radius Scalar, paint SkPaint)
+	DrawCircle(center models.Point, radius base.Scalar, paint SkPaint)
 
 	// DrawImage draws the specified image at (left, top).
 	// The image is drawn with its top-left corner at (left, top).
 	// Optional paint can be used to apply alpha, color filter, image filter, etc.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawImage() - line 1586
-	DrawImage(image SkImage, left, top Scalar, paint SkPaint)
+	DrawImage(image SkImage, left, top base.Scalar, paint SkPaint)
 
 	// DrawImageRect draws a sub-rectangle of the image, scaled to a destination rectangle.
 	// src: The subset of the image to draw. If nil, the entire image is drawn.
@@ -154,7 +155,7 @@ type SkCanvas interface {
 	// paint: Optional paint.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawImageRect() - line 1614
-	DrawImageRect(image SkImage, src *Rect, dst Rect, paint SkPaint)
+	DrawImageRect(image SkImage, src *models.Rect, dst models.Rect, paint SkPaint)
 
 	// Text Drawing Methods
 	// Ported from: skia-source/include/core/SkCanvas.h lines 1807-2030
@@ -167,7 +168,7 @@ type SkCanvas interface {
 	// Text is positioned at (x + blob.bounds.left, y + blob.bounds.top).
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawTextBlob() - line 2008
-	DrawTextBlob(blob SkTextBlob, x Scalar, y Scalar, paint SkPaint)
+	DrawTextBlob(blob SkTextBlob, x base.Scalar, y base.Scalar, paint SkPaint)
 
 	// DrawSimpleText draws text with origin at (x, y), using clip, matrix, font, and paint.
 	// When encoding is TextEncodingUTF8, TextEncodingUTF16, or TextEncodingUTF32,
@@ -179,7 +180,7 @@ type SkCanvas interface {
 	// All elements of paint apply to text. By default, draws filled black glyphs.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawSimpleText() - line 1834
-	DrawSimpleText(text []byte, encoding enums.TextEncoding, x Scalar, y Scalar, font SkFont, paint SkPaint)
+	DrawSimpleText(text []byte, encoding enums.TextEncoding, x base.Scalar, y base.Scalar, font SkFont, paint SkPaint)
 
 	// DrawString draws a null-terminated UTF-8 string at (x, y), using clip, matrix, font, and paint.
 	// This is a convenience method that wraps DrawSimpleText with UTF-8 encoding.
@@ -187,7 +188,7 @@ type SkCanvas interface {
 	// All elements of paint apply to text. By default, draws filled black glyphs.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:drawString() - line 1861
-	DrawString(str string, x Scalar, y Scalar, font SkFont, paint SkPaint)
+	DrawString(str string, x base.Scalar, y base.Scalar, font SkFont, paint SkPaint)
 
 	// Clipping Methods
 	// Ported from: skia-source/include/core/SkCanvas.h lines 1019-1151
@@ -203,7 +204,7 @@ type SkCanvas interface {
 	// Clips are cumulative and cannot be expanded (except via Save/Restore).
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:clipRect() - line 1019
-	ClipRect(rect Rect, op enums.ClipOp, doAntiAlias bool)
+	ClipRect(rect models.Rect, op enums.ClipOp, doAntiAlias bool)
 
 	// ClipRRect replaces clip with the intersection or difference of current clip and rounded rectangle.
 	// ClipOp and doAntiAlias behavior same as ClipRect.
@@ -212,7 +213,7 @@ type SkCanvas interface {
 	// Clips are cumulative and restrictive.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:clipRRect() - line 1073
-	ClipRRect(rrect RRect, op enums.ClipOp, doAntiAlias bool)
+	ClipRRect(rrect models.RRect, op enums.ClipOp, doAntiAlias bool)
 
 	// ClipPath replaces clip with the intersection or difference of current clip and path.
 	// PathFillType determines if path describes area inside or outside contours, and how overlaps are handled:
@@ -279,7 +280,7 @@ type SkCanvas interface {
 	// Moves drawing by (dx, dy) before applying existing matrix transformation.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:translate() - line 913
-	Translate(dx Scalar, dy Scalar)
+	Translate(dx base.Scalar, dy base.Scalar)
 
 	// Scale scales the current matrix by sx on x-axis and sy on y-axis.
 	// Mathematical effect: Premultiplies current matrix with a scale matrix.
@@ -287,7 +288,7 @@ type SkCanvas interface {
 	// Negative values mirror/flip. Zero values collapse dimension.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:scale() - line 928
-	Scale(sx Scalar, sy Scalar)
+	Scale(sx base.Scalar, sy base.Scalar)
 
 	// Rotate rotates the current matrix by degrees around the origin (0, 0).
 	// Mathematical effect: Premultiplies current matrix with a rotation matrix.
@@ -295,7 +296,7 @@ type SkCanvas interface {
 	// Rotates drawing by degrees around origin before applying existing matrix transformation.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:rotate() - line 942
-	Rotate(degrees Scalar)
+	Rotate(degrees base.Scalar)
 
 	// Skew skews the current matrix by sx on x-axis and sy on y-axis.
 	// Mathematical effect: Premultiplies current matrix with a skew matrix.
@@ -305,7 +306,7 @@ type SkCanvas interface {
 	// Skews drawing by (sx, sy) before applying existing matrix transformation.
 	//
 	// Ported from: skia-source/include/core/SkCanvas.h:skew() - line 976
-	Skew(sx Scalar, sy Scalar)
+	Skew(sx base.Scalar, sy base.Scalar)
 
 	// ResetMatrix sets the current matrix to the identity matrix.
 	// Any prior matrix state is overwritten.

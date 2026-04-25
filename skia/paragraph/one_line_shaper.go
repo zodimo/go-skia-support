@@ -4,6 +4,7 @@ import (
 	"sort"
 	"unicode/utf8"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/impl"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
@@ -184,16 +185,16 @@ func (ols *OneLineShaper) iterateThroughShapingRegions(shapeVisitor func(TextRan
 			clusterRange: NewRange(ph.Range.Start, ph.Range.End),
 			glyphs:       []uint16{0xFFFC},
 			positions: []models.Point{
-				{X: models.Scalar(advanceX), Y: 0},
-				{X: models.Scalar(advanceX + float32(ph.Style.Width)), Y: 0},
+				{X: base.Scalar(advanceX), Y: 0},
+				{X: base.Scalar(advanceX + float32(ph.Style.Width)), Y: 0},
 			},
 			offsets: []models.Point{{X: 0, Y: 0}, {X: 0, Y: 0}},
 			clusterIndexes: []uint32{
 				uint32(ph.Range.Start),
 				uint32(ph.Range.End),
 			},
-			advance:          models.Point{X: models.Scalar(ph.Style.Width), Y: models.Scalar(ph.Style.Height)},
-			offset:           models.Point{X: models.Scalar(advanceX), Y: 0},
+			advance:          models.Point{X: base.Scalar(ph.Style.Width), Y: base.Scalar(ph.Style.Height)},
+			offset:           models.Point{X: base.Scalar(advanceX), Y: 0},
 			clusterStart:     ph.Range.Start,
 			utf8Range:        shaper.Range{Begin: ph.Range.Start, End: ph.Range.End},
 			bidiLevel:        bidiLevel,
@@ -202,7 +203,7 @@ func (ols *OneLineShaper) iterateThroughShapingRegions(shapeVisitor func(TextRan
 			correctAscent:    float32(ph.Style.Height),
 			correctDescent:   0,
 			fontMetrics: models.FontMetrics{
-				Ascent:  -models.Scalar(ph.Style.Height),
+				Ascent:  -base.Scalar(ph.Style.Height),
 				Descent: 0,
 				Leading: 0,
 			},
@@ -285,14 +286,14 @@ func (ols *OneLineShaper) shapeRegion(textRange TextRange, styleSpan []Block, ad
 		ols.height = 0 // simplified: get from block style
 		ols.useHalfLeading = false
 		ols.baselineShift = 0.0
-		ols.advance = models.Point{X: models.Scalar(*advanceX), Y: 0}
+		ols.advance = models.Point{X: base.Scalar(*advanceX), Y: 0}
 
 		// Start with one unresolved block covering the whole style block range
 		ols.unresolvedBlocks = append(ols.unresolvedBlocks, newRunBlock(block.Range))
 
 		ols.matchResolvedFonts(block.Style, func(typeface interfaces.SkTypeface) resolvedStatus {
 			// Create font from typeface
-			font := impl.NewFontWithTypefaceAndSize(typeface, impl.Scalar(block.Style.FontSize))
+			font := impl.NewFontWithTypefaceAndSize(typeface, base.Scalar(block.Style.FontSize))
 			// Apply font settings (edging, hinting, etc.) - simplified for now
 
 			resolvedCount := len(ols.resolvedBlocks)

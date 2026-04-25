@@ -1,14 +1,16 @@
 package impl
 
 import (
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // PathIterRec represents a single iteration result from PathIter
 // Ported from: skia-source/include/core/SkPathIter.h:Rec
 type PathIterRec struct {
-	Points      []Point
-	ConicWeight Scalar
+	Points      []models.Point
+	ConicWeight base.Scalar
 	Verb        enums.PathVerb
 }
 
@@ -18,17 +20,17 @@ type PathIter struct {
 	pIndex                int
 	vIndex                int
 	cIndex                int
-	points                []Point
+	points                []models.Point
 	verbs                 []enums.PathVerb
-	conics                []Scalar
-	closePointStorage     [2]Point
-	firstPointFromMove    Point
+	conics                []base.Scalar
+	closePointStorage     [2]models.Point
+	firstPointFromMove    models.Point
 	hasFirstPointFromMove bool
 }
 
 // NewPathIter creates a new PathIter for the given path data
 // Ported from: skia-source/src/core/SkPathIter.cpp:SkPathIter constructor
-func NewPathIter(points []Point, verbs []enums.PathVerb, conics []Scalar) *PathIter {
+func NewPathIter(points []models.Point, verbs []enums.PathVerb, conics []base.Scalar) *PathIter {
 	// Trim trailing Move verb for compatibility (as C++ does)
 	trimmedVerbs := verbs
 	if len(verbs) > 0 && verbs[len(verbs)-1] == enums.PathVerbMove {
@@ -56,7 +58,7 @@ func (iter *PathIter) Next() *PathIterRec {
 	}
 
 	var n int
-	var w Scalar = -1
+	var w base.Scalar = -1
 	v := iter.verbs[iter.vIndex]
 	iter.vIndex++
 
@@ -69,7 +71,7 @@ func (iter *PathIter) Next() *PathIterRec {
 			iter.pIndex++
 		}
 		return &PathIterRec{
-			Points:      []Point{iter.closePointStorage[1]},
+			Points:      []models.Point{iter.closePointStorage[1]},
 			ConicWeight: w,
 			Verb:        v,
 		}
@@ -113,7 +115,7 @@ func (iter *PathIter) Next() *PathIterRec {
 	}
 
 	// Return n+1 points: [start point, ...n additional points]
-	resultPoints := make([]Point, n+1)
+	resultPoints := make([]models.Point, n+1)
 	resultPoints[0] = iter.points[start]
 	for i := 0; i < n; i++ {
 		resultPoints[i+1] = iter.points[start+1+i]

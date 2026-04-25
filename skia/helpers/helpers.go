@@ -1,14 +1,19 @@
 package helpers
 
-func CrossProduct(a, b Point) Scalar {
+import (
+	"github.com/zodimo/go-skia-support/skia/base"
+	"github.com/zodimo/go-skia-support/skia/models"
+)
+
+func CrossProduct(a, b models.Point) base.Scalar {
 	return a.X*b.Y - a.Y*b.X
 }
 
-func DotProduct(a, b Point) Scalar {
+func DotProduct(a, b models.Point) base.Scalar {
 	return a.X*b.X + a.Y*b.Y
 }
 
-func Sign(x Scalar) int {
+func Sign(x base.Scalar) int {
 	if x > 0 {
 		return 1
 	}
@@ -20,7 +25,7 @@ func Sign(x Scalar) int {
 
 // scalarPin clamps x between lo and hi, inclusively
 // Similar to SkTPin in C++
-func ScalarPin(x, lo, hi Scalar) Scalar {
+func ScalarPin(x, lo, hi base.Scalar) base.Scalar {
 	if x < lo {
 		return lo
 	}

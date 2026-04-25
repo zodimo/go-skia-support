@@ -3,7 +3,7 @@ package paragraph
 import (
 	"testing"
 
-	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 func TestNewPositionWithAffinity(t *testing.T) {
@@ -43,7 +43,7 @@ func TestNewPositionWithAffinityDefault(t *testing.T) {
 }
 
 func TestNewTextBox(t *testing.T) {
-	rect := interfaces.Rect{Left: 10, Top: 20, Right: 100, Bottom: 50}
+	rect := models.Rect{Left: 10, Top: 20, Right: 100, Bottom: 50}
 
 	// Test LTR direction
 	boxLTR := NewTextBox(rect, TextDirectionLTR)
@@ -62,7 +62,7 @@ func TestNewTextBox(t *testing.T) {
 }
 
 func TestTextBoxWithZeroRect(t *testing.T) {
-	rect := interfaces.Rect{}
+	rect := models.Rect{}
 	box := NewTextBox(rect, TextDirectionLTR)
 
 	if box.Rect.Left != 0 || box.Rect.Top != 0 || box.Rect.Right != 0 || box.Rect.Bottom != 0 {

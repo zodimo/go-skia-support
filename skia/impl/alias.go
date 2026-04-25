@@ -3,22 +3,8 @@ package impl
 import (
 	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/helpers"
-	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 )
-
-type SkMatrix = interfaces.SkMatrix
-type SkPath = interfaces.SkPath
-type SkFont = interfaces.SkFont
-type SkTypeface = interfaces.SkTypeface
-type SkTextBlob = interfaces.SkTextBlob
-type Shader = interfaces.Shader
-type ColorFilter = interfaces.ColorFilter
-type ImageFilter = interfaces.ImageFilter
-type MaskFilter = interfaces.MaskFilter
-type PathEffect = interfaces.PathEffect
-type Blender = interfaces.Blender
-type FontStyle = models.FontStyle
 
 // Matrix indices matching C++ SkMatrix constants
 const (
@@ -33,30 +19,21 @@ const (
 	kMPersp2 = base.KMPersp2 // perspective bias
 )
 
-type Scalar = base.Scalar
-
-type Point = models.Point
-
-type Color4f = models.Color4f
-
 const skScalarNearlyZero = base.SkScalarNearlyZero
 
-type Rect = models.Rect
-type RRect = models.RRect
-
-func sign(x Scalar) int {
+func sign(x base.Scalar) int {
 	return helpers.Sign(x)
 }
 
-func crossProduct(a, b Point) Scalar {
+func crossProduct(a, b models.Point) base.Scalar {
 	return helpers.CrossProduct(a, b)
 }
 
-func dotProduct(a, b Point) Scalar {
+func dotProduct(a, b models.Point) base.Scalar {
 	return helpers.DotProduct(a, b)
 }
 
-func scalarPin(x, lo, hi Scalar) Scalar {
+func scalarPin(x, lo, hi base.Scalar) base.Scalar {
 	return helpers.ScalarPin(x, lo, hi)
 }
 

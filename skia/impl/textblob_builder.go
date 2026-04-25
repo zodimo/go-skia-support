@@ -1,23 +1,29 @@
 package impl
 
+import (
+	"github.com/zodimo/go-skia-support/skia/base"
+	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
+)
+
 // RunBuffer supplies storage for glyphs and positions within a run.
 // A run is a sequence of glyphs sharing font metrics and positioning.
 //
 // Ported from: skia-source/include/core/SkTextBlob.h (SkTextBlobBuilder::RunBuffer)
 type RunBuffer struct {
-	Glyphs    []GlyphID // storage for glyph indexes in run
-	Positions []Scalar  // storage for glyph positions in run
+	Glyphs    []GlyphID     // storage for glyph indexes in run
+	Positions []base.Scalar // storage for glyph positions in run
 }
 
-// Points returns the positions as a slice of Points (for 2D positioning).
-func (rb *RunBuffer) Points() []Point {
+// Points returns the positions as a slice of models.Points (for 2D positioning).
+func (rb *RunBuffer) Points() []models.Point {
 	if len(rb.Positions) < 2 {
 		return nil
 	}
 	count := len(rb.Positions) / 2
-	points := make([]Point, count)
+	points := make([]models.Point, count)
 	for i := 0; i < count; i++ {
-		points[i] = Point{
+		points[i] = models.Point{
 			X: rb.Positions[i*2],
 			Y: rb.Positions[i*2+1],
 		}
@@ -30,10 +36,10 @@ func (rb *RunBuffer) Points() []Point {
 // Ported from: skia-source/include/core/SkTextBlob.h (SkTextBlobBuilder)
 type TextBlobBuilder struct {
 	runs           []TextBlobRun
-	bounds         Rect
+	bounds         models.Rect
 	currentBuffer  RunBuffer
-	currentFont    SkFont
-	currentOffset  Point
+	currentFont    interfaces.SkFont
+	currentOffset  models.Point
 	runCount       int
 	deferredBounds bool
 }
@@ -42,7 +48,7 @@ type TextBlobBuilder struct {
 func NewTextBlobBuilder() *TextBlobBuilder {
 	return &TextBlobBuilder{
 		runs:           nil,
-		bounds:         Rect{},
+		bounds:         models.Rect{},
 		deferredBounds: true,
 	}
 }
@@ -51,13 +57,13 @@ func NewTextBlobBuilder() *TextBlobBuilder {
 // Caller must write count glyphs to RunBuffer.Glyphs before next call.
 // Glyphs are positioned on a baseline at (x, y), using font metrics to
 // determine their relative placement.
-func (b *TextBlobBuilder) AllocRun(font SkFont, count int, x, y Scalar) *RunBuffer {
+func (b *TextBlobBuilder) AllocRun(font interfaces.SkFont, count int, x, y base.Scalar) *RunBuffer {
 	if count <= 0 || font == nil {
 		return nil
 	}
 
 	b.currentFont = font
-	b.currentOffset = Point{X: x, Y: y}
+	b.currentOffset = models.Point{X: x, Y: y}
 	b.currentBuffer = RunBuffer{
 		Glyphs:    make([]GlyphID, count),
 		Positions: nil, // Not used for default run
@@ -71,16 +77,16 @@ func (b *TextBlobBuilder) AllocRun(font SkFont, count int, x, y Scalar) *RunBuff
 // RunBuffer.Positions before next call.
 // Glyphs are positioned on a baseline at y, using x-axis positions
 // written by caller to RunBuffer.Positions.
-func (b *TextBlobBuilder) AllocRunPosH(font SkFont, count int, y Scalar) *RunBuffer {
+func (b *TextBlobBuilder) AllocRunPosH(font interfaces.SkFont, count int, y base.Scalar) *RunBuffer {
 	if count <= 0 || font == nil {
 		return nil
 	}
 
 	b.currentFont = font
-	b.currentOffset = Point{X: 0, Y: y}
+	b.currentOffset = models.Point{X: 0, Y: y}
 	b.currentBuffer = RunBuffer{
 		Glyphs:    make([]GlyphID, count),
-		Positions: make([]Scalar, count), // X positions only
+		Positions: make([]base.Scalar, count), // X positions only
 	}
 
 	return &b.currentBuffer
@@ -89,16 +95,16 @@ func (b *TextBlobBuilder) AllocRunPosH(font SkFont, count int, y Scalar) *RunBuf
 // AllocRunPos returns run with storage for glyphs and Point positions.
 // Caller must write count glyphs to RunBuffer.Glyphs and count*2 scalars to
 // RunBuffer.Positions (x,y pairs) before next call.
-func (b *TextBlobBuilder) AllocRunPos(font SkFont, count int) *RunBuffer {
+func (b *TextBlobBuilder) AllocRunPos(font interfaces.SkFont, count int) *RunBuffer {
 	if count <= 0 || font == nil {
 		return nil
 	}
 
 	b.currentFont = font
-	b.currentOffset = Point{X: 0, Y: 0}
+	b.currentOffset = models.Point{X: 0, Y: 0}
 	b.currentBuffer = RunBuffer{
 		Glyphs:    make([]GlyphID, count),
-		Positions: make([]Scalar, count*2), // X,Y pairs
+		Positions: make([]base.Scalar, count*2), // X,Y pairs
 	}
 
 	return &b.currentBuffer
@@ -124,9 +130,9 @@ func (b *TextBlobBuilder) AddRun() {
 		run.Positions = calculateGlyphPositions(run.Glyphs, b.currentFont, b.currentOffset.X, b.currentOffset.Y)
 	} else if len(b.currentBuffer.Positions) == len(b.currentBuffer.Glyphs) {
 		// Horizontal positioning (AllocRunPosH case)
-		run.Positions = make([]Point, len(b.currentBuffer.Glyphs))
+		run.Positions = make([]models.Point, len(b.currentBuffer.Glyphs))
 		for i, xPos := range b.currentBuffer.Positions {
-			run.Positions[i] = Point{X: xPos, Y: b.currentOffset.Y}
+			run.Positions[i] = models.Point{X: xPos, Y: b.currentOffset.Y}
 		}
 	} else if len(b.currentBuffer.Positions) == len(b.currentBuffer.Glyphs)*2 {
 		// Full positioning (AllocRunPos case)
@@ -169,7 +175,7 @@ func (b *TextBlobBuilder) Make() *TextBlob {
 
 	// Reset builder
 	b.runs = nil
-	b.bounds = Rect{}
+	b.bounds = models.Rect{}
 	b.runCount = 0
 	b.deferredBounds = true
 
@@ -177,12 +183,12 @@ func (b *TextBlobBuilder) Make() *TextBlob {
 }
 
 // computeBounds calculates the union of all run bounds.
-func (b *TextBlobBuilder) computeBounds() Rect {
+func (b *TextBlobBuilder) computeBounds() models.Rect {
 	if len(b.runs) == 0 {
-		return Rect{}
+		return models.Rect{}
 	}
 
-	var totalBounds Rect
+	var totalBounds models.Rect
 	first := true
 
 	for _, run := range b.runs {

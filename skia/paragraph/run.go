@@ -10,6 +10,7 @@ package paragraph
 import (
 	"math"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/interfaces"
 	"github.com/zodimo/go-skia-support/skia/models"
 	"github.com/zodimo/go-skia-support/skia/shaper"
@@ -123,7 +124,7 @@ func NewRun(
 		clusterIndexes: make([]uint32, glyphCount+1),
 
 		advance:      models.Point{X: info.Advance.X, Y: info.Advance.Y},
-		offset:       models.Point{X: models.Scalar(offsetX), Y: 0},
+		offset:       models.Point{X: base.Scalar(offsetX), Y: 0},
 		clusterStart: firstChar,
 		utf8Range:    info.Utf8Range,
 
@@ -242,7 +243,7 @@ func (r *Run) PosY(index int) float32 {
 
 // AddX adds a shift to the X position at the given glyph index.
 func (r *Run) AddX(index int, shift float32) {
-	r.positions[index].X += models.Scalar(shift)
+	r.positions[index].X += base.Scalar(shift)
 }
 
 // Size returns the number of glyphs in the run.
@@ -252,18 +253,18 @@ func (r *Run) Size() int {
 
 // SetWidth sets the advance width of the run.
 func (r *Run) SetWidth(width float32) {
-	r.advance.X = models.Scalar(width)
+	r.advance.X = base.Scalar(width)
 }
 
 // SetHeight sets the advance height of the run.
 func (r *Run) SetHeight(height float32) {
-	r.advance.Y = models.Scalar(height)
+	r.advance.Y = base.Scalar(height)
 }
 
 // Shift moves the run offset by the given delta.
 func (r *Run) Shift(shiftX, shiftY float32) {
-	r.offset.X += models.Scalar(shiftX)
-	r.offset.Y += models.Scalar(shiftY)
+	r.offset.X += base.Scalar(shiftX)
+	r.offset.Y += base.Scalar(shiftY)
 }
 
 // Advance returns the total advance of the run.

@@ -3,9 +3,11 @@ package models
 import (
 	"math"
 	"testing"
+
+	"github.com/zodimo/go-skia-support/skia/base"
 )
 
-func floatEquals(a, b Scalar) bool {
+func floatEquals(a, b base.Scalar) bool {
 	return math.Abs(float64(a-b)) < 0.00001
 }
 
@@ -17,7 +19,7 @@ func TestRSXform_MakeFromRadians(t *testing.T) {
 	}
 
 	// Rotate 90 degrees around 0,0
-	rad := Scalar(math.Pi / 2)
+	rad := base.Scalar(math.Pi / 2)
 	r = MakeRSXformFromRadians(1, rad, 10, 20, 0, 0)
 	// cos(90) = 0, sin(90) = 1
 	// tx = 10, ty = 20
@@ -44,8 +46,8 @@ func TestRSXform_MakeFromRadians(t *testing.T) {
 }
 
 func TestRSXform_ToQuad(t *testing.T) {
-	width := Scalar(100)
-	height := Scalar(100)
+	width := base.Scalar(100)
+	height := base.Scalar(100)
 	// Identity translated by 10, 20
 	r := MakeRSXform(1, 0, 10, 20)
 
@@ -72,8 +74,8 @@ func TestRSXform_ToQuad(t *testing.T) {
 }
 
 func TestRSXform_ToTriStrip(t *testing.T) {
-	width := Scalar(100)
-	height := Scalar(100)
+	width := base.Scalar(100)
+	height := base.Scalar(100)
 	// Identity translated by 10, 20
 	r := MakeRSXform(1, 0, 10, 20)
 

@@ -3,7 +3,9 @@ package impl
 import (
 	"testing"
 
+	"github.com/zodimo/go-skia-support/skia/base"
 	"github.com/zodimo/go-skia-support/skia/enums"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 func TestMakeTextBlobFromString(t *testing.T) {
@@ -286,7 +288,7 @@ func TestTextBlobBuilderMultipleRuns(t *testing.T) {
 
 	// Add 3 runs with default positioning at different positions
 	for runIdx := 0; runIdx < 3; runIdx++ {
-		buffer := builder.AllocRun(font, 128, 100, Scalar(150+runIdx*100))
+		buffer := builder.AllocRun(font, 128, 100, base.Scalar(150+runIdx*100))
 		for i := 0; i < 128; i++ {
 			buffer.Glyphs[i] = GlyphID(i % 128)
 		}
@@ -315,7 +317,7 @@ func TestTextBlobBuilderHorizontalPositioning(t *testing.T) {
 		buffer := builder.AllocRunPosH(font, 128, 150)
 		for i := 0; i < 128; i++ {
 			buffer.Glyphs[i] = GlyphID(i % 128)
-			buffer.Positions[i] = Scalar(runIdx*100 + i)
+			buffer.Positions[i] = base.Scalar(runIdx*100 + i)
 		}
 		builder.AddRun()
 	}
@@ -342,8 +344,8 @@ func TestTextBlobBuilderFullPositioning(t *testing.T) {
 		buffer := builder.AllocRunPos(font, 128)
 		for i := 0; i < 128; i++ {
 			buffer.Glyphs[i] = GlyphID(i % 128)
-			buffer.Positions[i*2] = Scalar(i)
-			buffer.Positions[i*2+1] = Scalar(-i)
+			buffer.Positions[i*2] = base.Scalar(i)
+			buffer.Positions[i*2+1] = base.Scalar(-i)
 		}
 		builder.AddRun()
 	}
@@ -399,7 +401,7 @@ func TestTextBlobBoundsMultipleRuns(t *testing.T) {
 	font := NewFont()
 
 	// Create multiple runs at different positions
-	positions := []Point{
+	positions := []models.Point{
 		{X: 10, Y: 10},
 		{X: 50, Y: 20},
 		{X: 0, Y: 5},

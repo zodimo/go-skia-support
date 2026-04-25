@@ -69,8 +69,8 @@ func (m *MockTypeface) GetGlyphAdvance(glyphID uint16) int16 {
 	return 600 // Reasonable mock advance
 }
 
-func (m *MockTypeface) GetGlyphBounds(glyphID uint16) interfaces.Rect {
-	return interfaces.Rect{Left: 0, Top: -800, Right: 600, Bottom: 200}
+func (m *MockTypeface) GetGlyphBounds(glyphID uint16) models.Rect {
+	return models.Rect{Left: 0, Top: -800, Right: 600, Bottom: 200}
 }
 
 func (m *MockTypeface) GetGlyphPath(glyphID uint16) (interfaces.SkPath, error) {

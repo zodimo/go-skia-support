@@ -1,7 +1,7 @@
 package paragraph
 
 import (
-	"github.com/zodimo/go-skia-support/skia/interfaces"
+	"github.com/zodimo/go-skia-support/skia/models"
 )
 
 // TextShadow represents a shadow effect applied to text.
@@ -13,14 +13,14 @@ type TextShadow struct {
 	Color uint32
 
 	// Offset is the shadow offset from the text.
-	Offset interfaces.Point
+	Offset models.Point
 
 	// BlurSigma is the blur radius as a sigma value. 0 means no blur.
 	BlurSigma float64
 }
 
 // NewTextShadow creates a new TextShadow with the given parameters.
-func NewTextShadow(color uint32, offset interfaces.Point, blurSigma float64) TextShadow {
+func NewTextShadow(color uint32, offset models.Point, blurSigma float64) TextShadow {
 	return TextShadow{
 		Color:     color,
 		Offset:    offset,
@@ -32,7 +32,7 @@ func NewTextShadow(color uint32, offset interfaces.Point, blurSigma float64) Tex
 func NewTextShadowDefault() TextShadow {
 	return TextShadow{
 		Color:     0xFF000000, // SK_ColorBLACK
-		Offset:    interfaces.Point{},
+		Offset:    models.Point{},
 		BlurSigma: 0.0,
 	}
 }

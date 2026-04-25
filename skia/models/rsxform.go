@@ -1,6 +1,10 @@
 package models
 
-import "math"
+import (
+	"math"
+
+	"github.com/zodimo/go-skia-support/skia/base"
+)
 
 // RSXform is a compressed form of a rotation+scale matrix.
 //
@@ -11,14 +15,14 @@ import "math"
 // Ported from SkRSXform.h
 // https://github.com/google/skia/blob/main/include/core/SkRSXform.h
 type RSXform struct {
-	SCos Scalar
-	SSin Scalar
-	Tx   Scalar
-	Ty   Scalar
+	SCos base.Scalar
+	SSin base.Scalar
+	Tx   base.Scalar
+	Ty   base.Scalar
 }
 
 // MakeRSXform creates a new RSXform.
-func MakeRSXform(scos, ssin, tx, ty Scalar) RSXform {
+func MakeRSXform(scos, ssin, tx, ty base.Scalar) RSXform {
 	return RSXform{SCos: scos, SSin: ssin, Tx: tx, Ty: ty}
 }
 
@@ -26,9 +30,9 @@ func MakeRSXform(scos, ssin, tx, ty Scalar) RSXform {
 // final tx,ty location and anchor-point ax,ay within the src quad.
 //
 // Note: the anchor point is not normalized (e.g. 0...1) but is in pixels of the src image.
-func MakeRSXformFromRadians(scale, radians, tx, ty, ax, ay Scalar) RSXform {
-	s := Scalar(math.Sin(float64(radians))) * scale
-	c := Scalar(math.Cos(float64(radians))) * scale
+func MakeRSXformFromRadians(scale, radians, tx, ty, ax, ay base.Scalar) RSXform {
+	s := base.Scalar(math.Sin(float64(radians))) * scale
+	c := base.Scalar(math.Cos(float64(radians))) * scale
 	return MakeRSXform(c, s, tx+-c*ax+s*ay, ty+-s*ax-c*ay)
 }
 
@@ -46,7 +50,7 @@ func (r *RSXform) SetIdentity() {
 }
 
 // Set sets the xform values.
-func (r *RSXform) Set(scos, ssin, tx, ty Scalar) {
+func (r *RSXform) Set(scos, ssin, tx, ty base.Scalar) {
 	r.SCos = scos
 	r.SSin = ssin
 	r.Tx = tx
@@ -56,7 +60,7 @@ func (r *RSXform) Set(scos, ssin, tx, ty Scalar) {
 // ToQuad computes the quad points for the given width and height.
 // Ported from SkRSXform.cpp
 // https://github.com/google/skia/blob/main/src/core/SkRSXform.cpp
-func (r RSXform) ToQuad(width, height Scalar) [4]Point {
+func (r RSXform) ToQuad(width, height base.Scalar) [4]Point {
 	m00 := r.SCos
 	m01 := -r.SSin
 	m02 := r.Tx
@@ -75,7 +79,7 @@ func (r RSXform) ToQuad(width, height Scalar) [4]Point {
 // ToTriStrip computes the triangle strip points for the given width and height.
 // Ported from SkRSXform.cpp
 // https://github.com/google/skia/blob/main/src/core/SkRSXform.cpp
-func (r RSXform) ToTriStrip(width, height Scalar) [4]Point {
+func (r RSXform) ToTriStrip(width, height base.Scalar) [4]Point {
 	m00 := r.SCos
 	m01 := -r.SSin
 	m02 := r.Tx

@@ -4,7 +4,10 @@
 
 package models
 
-import "github.com/zodimo/go-skia-support/skia/enums"
+import (
+	"github.com/zodimo/go-skia-support/skia/base"
+	"github.com/zodimo/go-skia-support/skia/enums"
+)
 
 // GradientInfo contains detailed information about a gradient shader.
 //
@@ -40,13 +43,13 @@ type GradientInfo struct {
 	Colors []Color4f
 
 	// ColorOffsets contains the unit offset for color transitions.
-	ColorOffsets []Scalar
+	ColorOffsets []base.Scalar
 
 	// Point contains type-specific point data (see struct documentation).
 	Point [2]Point
 
 	// Radius contains type-specific radius data (see struct documentation).
-	Radius [2]Scalar
+	Radius [2]base.Scalar
 
 	// TileMode specifies the tiling behavior.
 	TileMode enums.TileMode

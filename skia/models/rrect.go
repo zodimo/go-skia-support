@@ -1,6 +1,9 @@
 package models
 
-import "github.com/zodimo/go-skia-support/skia/enums"
+import (
+	"github.com/zodimo/go-skia-support/skia/base"
+	"github.com/zodimo/go-skia-support/skia/enums"
+)
 
 // RRect represents a rounded rectangle with corner radii
 // Radii are stored in order: UpperLeft, UpperRight, LowerRight, LowerLeft
@@ -50,7 +53,7 @@ func (r RRect) IsOval() bool {
 
 // RadiiAt returns the radii for a specific corner.
 // Returns the x-axis and y-axis radii for the specified corner.
-func (r RRect) RadiiAt(corner Corner) Point {
+func (r RRect) RadiiAt(corner enums.Corner) Point {
 	return r.Radii[int(corner)]
 }
 
@@ -61,7 +64,7 @@ func (r RRect) GetAllRadii() []Point {
 }
 
 // Type returns the type of the rounded rectangle.
-func (r RRect) Type() RRectType {
+func (r RRect) Type() enums.RRectType {
 	if r.IsEmpty() {
 		return enums.RRectTypeEmpty
 	}
@@ -86,12 +89,12 @@ func (r RRect) Rect() Rect {
 }
 
 // Width returns the width of the rounded rectangle.
-func (r RRect) Width() Scalar {
+func (r RRect) Width() base.Scalar {
 	return r.bounds.Right - r.bounds.Left
 }
 
 // Height returns the height of the rounded rectangle.
-func (r RRect) Height() Scalar {
+func (r RRect) Height() base.Scalar {
 	return r.bounds.Bottom - r.bounds.Top
 }
 
@@ -158,7 +161,7 @@ func (r *RRect) SetOval(rect Rect) {
 }
 
 // SetRectXY sets the rounded rectangle with uniform radii.
-func (r *RRect) SetRectXY(rect Rect, rx, ry Scalar) {
+func (r *RRect) SetRectXY(rect Rect, rx, ry base.Scalar) {
 	r.bounds = rect
 	// Clamp radii to valid values
 	if rx < 0 {
@@ -186,10 +189,10 @@ func (r *RRect) SetRectXY(rect Rect, rx, ry Scalar) {
 // Parameters: rx1, ry1 (upper-left), rx2, ry2 (upper-right),
 //
 //	rx3, ry3 (lower-right), rx4, ry4 (lower-left)
-func (r *RRect) SetNinePatch(rect Rect, rx1, ry1, rx2, ry2, rx3, ry3, rx4, ry4 Scalar) {
+func (r *RRect) SetNinePatch(rect Rect, rx1, ry1, rx2, ry2, rx3, ry3, rx4, ry4 base.Scalar) {
 	r.bounds = rect
 	// Clamp radii to valid values
-	radii := [8]Scalar{rx1, ry1, rx2, ry2, rx3, ry3, rx4, ry4}
+	radii := [8]base.Scalar{rx1, ry1, rx2, ry2, rx3, ry3, rx4, ry4}
 	for i := 0; i < 8; i++ {
 		if radii[i] < 0 {
 			radii[i] = 0
